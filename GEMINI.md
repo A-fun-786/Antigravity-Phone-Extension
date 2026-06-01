@@ -48,6 +48,7 @@ antigravity_phone_chat/
 - **Backend**: Single `server.js` handles everything — Express HTTP/S server, WebSocket for real-time updates, CDP bridge to Antigravity.
 - **Frontend**: Vanilla HTML/CSS/JS in `public/`. No framework. No build step.
 - **CDP Flow**: `server.js` polls Antigravity every 1s via CDP → hashes DOM → broadcasts delta to phone via WebSocket.
+- **Model Quota / CDP Navigation**: `capture_models.js` automates Settings → Models navigation to write real-time stats to `parsed_model_quotas.json`. Integrates into `server.js` or phone connect quota UI. Refer to `Docs/CDP_EXPLORATION_GUIDE.md` first.
 - **Auth**: Signed httpOnly cookies. LAN auto-trusts. External requires password from `.env`.
 - **Tunnel**: `launcher.py` manages ngrok/cloudflare/pinggy tunnels as child processes.
 - **Security**: Strict CSP (no inline JS), XSS-safe HTML escaping, input sanitization via JSON.stringify.
@@ -66,6 +67,7 @@ Instead of asking the agent to figure things out, use these **command words** to
 | `"security"` or `"auth"` or `"HTTPS"` | `security-work` | Read/edit auth, CSP, SSL, `.env`. References `SECURITY.md`. |
 | `"docs"` or `"readme"` | `docs-work` | Read/edit markdown documentation files. |
 | `"debug"` or `"inspect"` | `debug-pipeline` | Run server, check logs, use `ui_inspector.js`, health endpoint. |
+| `"CDP"` or `"quota"` or `"usage"` | `backend-work` / `frontend-work` | Refer to `Docs/CDP_EXPLORATION_GUIDE.md`. Run/integrate `capture_models.js`. |
 
 ### How to Use the Pipeline
 
@@ -75,6 +77,7 @@ Instead of asking the agent to figure things out, use these **command words** to
 - *"Fix the CDP reconnection logic when Antigravity restarts"* → I use `backend-work` skill.
 - *"Update the README to document the new Pinggy tunnel option"* → I use `docs-work` skill.
 - *"The server crashes when no `.env` file exists"* → I use `debug-pipeline` + `launcher-work`.
+- *"Show my Gemini quota usage on the phone connect screen"* → I use `Docs/CDP_EXPLORATION_GUIDE.md` + `backend-work`.
 
 You do NOT need to memorize skill names. I route automatically based on your description.
 
