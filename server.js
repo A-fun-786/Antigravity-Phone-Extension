@@ -230,8 +230,10 @@ async function connectCDP(url) {
 // Capture agent chat snapshot
 async function captureSnapshot(cdp) {
     const CAPTURE_SCRIPT = `(async () => {
-        // Target Agent Mode container exclusively
-        const cascade = document.querySelector('[data-testid="conversation-view"]');
+        // Target Agent Mode container exclusively - MUST check visibility to avoid hidden cached DOM nodes
+        const cascades = Array.from(document.querySelectorAll('[data-testid="conversation-view"]'));
+        const cascade = cascades.find(el => el.offsetParent !== null) || cascades[cascades.length - 1];
+        
         if (!cascade) {
             return { error: 'Agent container not found', debug: { active: false } };
         }
@@ -272,7 +274,12 @@ async function captureSnapshot(cdp) {
                 // Only remove actual input-related elements, not anything with 'input' in class
                 '[data-testid="chat-input"]',
                 '[data-testid="message-input"]',
-                '[data-testid*="input-area"]'
+                '[data-testid*="input-area"]',
+                // Remove Lexical placeholders that ghost after editor is removed
+                '[class*="placeholder"]',
+                '[class*="Placeholder"]',
+                '.editor-placeholder',
+                '[data-placeholder]'
             ];
 
             interactionSelectors.forEach(selector => {
@@ -906,7 +913,8 @@ async function remoteScroll(cdp, { scrollTop, scrollPercent }) {
     const EXPRESSION = `(async () => {
         try {
             // Find the main scrollable chat container
-            const convView = document.querySelector('[data-testid="conversation-view"]');
+            const convViews = Array.from(document.querySelectorAll('[data-testid="conversation-view"]'));
+            const convView = convViews.find(el => el.offsetParent !== null) || convViews[convViews.length - 1];
             const scrollables = [...document.querySelectorAll('[data-testid="conversation-view"] [class*="scroll"], #conversation [class*="scroll"], #chat [class*="scroll"], #cascade [class*="scroll"]')]
                 .filter(el => el.scrollHeight > el.clientHeight);
             
@@ -1591,7 +1599,9 @@ async function closeHistory(cdp) {
 // Check if a chat is currently open (has cascade element)
 async function hasChatOpen(cdp) {
     const EXP = `(() => {
-    const chatContainer = document.querySelector('[data-testid="conversation-view"]') || document.getElementById('conversation') || document.getElementById('chat') || document.getElementById('cascade');
+    const chatContainers = Array.from(document.querySelectorAll('[data-testid="conversation-view"]'));
+    let chatContainer = chatContainers.find(el => el.offsetParent !== null) || chatContainers[chatContainers.length - 1];
+    if (!chatContainer) chatContainer = document.getElementById('conversation') || document.getElementById('chat') || document.getElementById('cascade');
     const hasMessages = chatContainer && chatContainer.querySelectorAll('[class*="message"], [data-message]').length > 0;
     const editorFound = !!document.querySelector('[contenteditable="true"]');
     return {
@@ -1927,6 +1937,25 @@ async function createServer() {
         }
         res.setHeader('Content-Type', 'application/json; charset=utf-8');
         res.json(lastSnapshot);
+    });
+
+    // Debug: View raw snapshot HTML in browser
+    app.get('/debug-snapshot', (req, res) => {
+        if (!lastSnapshot) {
+            return res.status(503).send('No snapshot yet');
+        }
+        const htmlLen = lastSnapshot.html ? lastSnapshot.html.length : 0;
+        const first500 = lastSnapshot.html ? lastSnapshot.html.substring(0, 2000) : 'NO HTML';
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.send(`<html><body style="background:#111;color:#eee;font-family:monospace;padding:20px;">
+            <h2>Snapshot Debug</h2>
+            <p>HTML length: ${htmlLen} chars</p>
+            <p>Stats: ${JSON.stringify(lastSnapshot.stats)}</p>
+            <h3>First 2000 chars of HTML:</h3>
+            <pre style="white-space:pre-wrap;word-break:break-all;border:1px solid #444;padding:10px;max-height:400px;overflow:auto;">${first500.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>
+            <h3>Rendered HTML:</h3>
+            <div style="border:2px solid #f00;padding:10px;background:#0a0a0a;">${lastSnapshot.html}</div>
+        </body></html>`);
     });
 
     // Health check endpoint

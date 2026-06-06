@@ -249,120 +249,212 @@ async function loadSnapshot() {
 
         const darkModeOverrides = '/* --- BASE SNAPSHOT CSS --- */\n' +
             data.css +
-            '\n\n/* --- FORCE DARK MODE OVERRIDES --- */\n' +
+            '\n\n/* === PREMIUM PHONE CONNECT DARK THEME === */\n' +
+
+            /* ── 1. Tailwind CSS Variable Overrides ── */
             ':root {\n' +
-            '    --bg-app: #0f172a;\n' +
+            '    --bg-app: #090e17;\n' +
             '    --text-main: #f8fafc;\n' +
             '    --text-muted: #94a3b8;\n' +
             '    --border-color: #334155;\n' +
+            '    --background: #090e17;\n' +
+            '    --card: rgba(30, 41, 59, 0.9);\n' +
+            '    --card-border: rgba(51, 65, 85, 0.6);\n' +
+            '    --card-foreground: #f8fafc;\n' +
+            '    --foreground: #f8fafc;\n' +
+            '    --muted: #1e293b;\n' +
+            '    --muted-foreground: #94a3b8;\n' +
+            '    --accent: #6366f1;\n' +
+            '    --accent-foreground: #f8fafc;\n' +
+            '    --border: #334155;\n' +
             '}\n' +
-            '\n' +
+
+            /* ── 2. Conversation Container ── */
             '#conversation, #chat, #cascade, [data-testid="conversation-view"] {\n' +
             '    background-color: transparent !important;\n' +
             '    color: var(--text-main) !important;\n' +
             '    font-family: \'Inter\', system-ui, sans-serif !important;\n' +
             '    position: relative !important;\n' +
-            '    height: auto !important;\n' +
             '    width: 100% !important;\n' +
+            '    height: auto !important;\n' +
+            '    min-height: 0 !important;\n' +
             '    overflow: visible !important;\n' +
+            '    font-size: 14px !important;\n' +
             '}\n' +
-            '\n' +
-            '/* Fix stacking BUT preserve absolute/fixed positioning for dropdowns */\n' +
-            '#conversation > div, #chat > div, #cascade > div, [data-testid="conversation-view"] > div {\n' +
-            '    position: static !important;\n' +
+            '/* Flatten nested scroll/height containers from Tailwind */\n' +
+            '[data-testid="conversation-view"] > div,\n' +
+            '[data-testid="conversation-view"] > div > div {\n' +
+            '    height: auto !important;\n' +
+            '    min-height: 0 !important;\n' +
+            '    overflow: visible !important;\n' +
+            '    max-height: none !important;\n' +
             '}\n' +
-            '/* Preserve absolute positioning needed for dropdowns, tooltips, popups */\n' +
-            '[style*="position: absolute"], [style*="position: fixed"],\n' +
-            '[data-headlessui-state], [id*="headlessui"] {\n' +
-            '    position: absolute !important;\n' +
+
+            /* ── 3. User Messages — Indigo Accent Card ── */
+            '[aria-label="User message"] {\n' +
+            '    position: relative !important;\n' +
+            '    top: auto !important;\n' +
+            '    z-index: auto !important;\n' +
+            '    background: rgba(99, 102, 241, 0.06) !important;\n' +
+            '    border-left: 3px solid #6366f1 !important;\n' +
+            '    border-radius: 0 12px 12px 0 !important;\n' +
+            '    margin: 16px 0 12px 0 !important;\n' +
+            '    padding: 12px 14px !important;\n' +
+            '    backdrop-filter: blur(8px) !important;\n' +
+            '    -webkit-backdrop-filter: blur(8px) !important;\n' +
+            '    box-shadow: 0 2px 12px rgba(99, 102, 241, 0.08) !important;\n' +
             '}\n' +
-            '\n' +
-            '#conversation p, #chat p, #cascade p, [data-testid="conversation-view"] p, #conversation h1, #chat h1, #cascade h1, [data-testid="conversation-view"] h1, #conversation h2, #chat h2, #cascade h2, [data-testid="conversation-view"] h2, #conversation h3, #chat h3, #cascade h3, [data-testid="conversation-view"] h3, #conversation h4, #chat h4, #cascade h4, [data-testid="conversation-view"] h4, #conversation h5, #chat h5, #cascade h5, [data-testid="conversation-view"] h5, #conversation span, #chat span, #cascade span, [data-testid="conversation-view"] span, #conversation div, #chat div, #cascade div, [data-testid="conversation-view"] div, #conversation li, #chat li, #cascade li, [data-testid="conversation-view"] li {\n' +
+            '/* Kill the gradient pseudo-element that causes overlap */\n' +
+            '[aria-label="User message"]::after {\n' +
+            '    content: none !important;\n' +
+            '    display: none !important;\n' +
+            '}\n' +
+
+            /* ── 4. User Card Inner Surface ── */
+            '.bg-card-border {\n' +
+            '    background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(59, 130, 246, 0.08)) !important;\n' +
+            '    border-radius: 12px !important;\n' +
+            '    padding: 1px !important;\n' +
+            '}\n' +
+            '.bg-card {\n' +
+            '    background: rgba(30, 41, 59, 0.85) !important;\n' +
+            '    border-radius: 11px !important;\n' +
+            '    color: #f8fafc !important;\n' +
+            '}\n' +
+            '.bg-background {\n' +
+            '    background-color: #090e17 !important;\n' +
+            '}\n' +
+
+            /* ── 5. Tool/Command Blocks ── */
+            '[class*="group/run-command"] {\n' +
+            '    background: rgba(15, 23, 42, 0.7) !important;\n' +
+            '    border: 1px solid rgba(51, 65, 85, 0.5) !important;\n' +
+            '    border-radius: 10px !important;\n' +
+            '    margin: 6px 0 !important;\n' +
+            '    overflow: hidden !important;\n' +
+            '}\n' +
+
+            /* ── 6. Agent Action Buttons ── */
+            '.agent-allow-btn {\n' +
+            '    background: linear-gradient(135deg, #22c55e, #16a34a) !important;\n' +
+            '    color: #fff !important;\n' +
+            '    border: none !important;\n' +
+            '    border-radius: 20px !important;\n' +
+            '    padding: 8px 18px !important;\n' +
+            '    font-weight: 600 !important;\n' +
+            '    font-size: 13px !important;\n' +
+            '    cursor: pointer !important;\n' +
+            '    box-shadow: 0 2px 10px rgba(34, 197, 94, 0.25) !important;\n' +
+            '    transition: transform 0.2s, box-shadow 0.2s !important;\n' +
+            '}\n' +
+            '.agent-deny-btn {\n' +
+            '    background: linear-gradient(135deg, #ef4444, #dc2626) !important;\n' +
+            '    color: #fff !important;\n' +
+            '    border: none !important;\n' +
+            '    border-radius: 20px !important;\n' +
+            '    padding: 8px 18px !important;\n' +
+            '    font-weight: 600 !important;\n' +
+            '    font-size: 13px !important;\n' +
+            '    cursor: pointer !important;\n' +
+            '    box-shadow: 0 2px 10px rgba(239, 68, 68, 0.25) !important;\n' +
+            '    transition: transform 0.2s, box-shadow 0.2s !important;\n' +
+            '}\n' +
+            '.agent-review-btn {\n' +
+            '    background: linear-gradient(135deg, #3b82f6, #2563eb) !important;\n' +
+            '    color: #fff !important;\n' +
+            '    border: none !important;\n' +
+            '    border-radius: 20px !important;\n' +
+            '    padding: 8px 18px !important;\n' +
+            '    font-weight: 600 !important;\n' +
+            '    font-size: 13px !important;\n' +
+            '    cursor: pointer !important;\n' +
+            '    box-shadow: 0 2px 10px rgba(59, 130, 246, 0.25) !important;\n' +
+            '    transition: transform 0.2s, box-shadow 0.2s !important;\n' +
+            '}\n' +
+
+            /* ── 7. Typography & Text Colors ── */
+            '#conversation p, #chat p, #cascade p, [data-testid="conversation-view"] p,\n' +
+            '#conversation h1, #chat h1, #cascade h1, [data-testid="conversation-view"] h1,\n' +
+            '#conversation h2, #chat h2, #cascade h2, [data-testid="conversation-view"] h2,\n' +
+            '#conversation h3, #chat h3, #cascade h3, [data-testid="conversation-view"] h3,\n' +
+            '#conversation h4, #chat h4, #cascade h4, [data-testid="conversation-view"] h4,\n' +
+            '#conversation span, #chat span, #cascade span, [data-testid="conversation-view"] span,\n' +
+            '#conversation div, #chat div, #cascade div, [data-testid="conversation-view"] div,\n' +
+            '#conversation li, #chat li, #cascade li, [data-testid="conversation-view"] li {\n' +
             '    color: inherit !important;\n' +
             '}\n' +
-            '\n' +
-            '/* Force black inline text to white */\n' +
             '[style*="color: rgb(0, 0, 0)"], [style*="color: black"],\n' +
             '[style*="color:#000"], [style*="color: #000"] {\n' +
             '    color: #e2e8f0 !important;\n' +
             '}\n' +
-            '\n' +
             '#conversation a, #chat a, #cascade a, [data-testid="conversation-view"] a {\n' +
-            '    color: #60a5fa !important;\n' +
+            '    color: #818cf8 !important;\n' +
             '    text-decoration: underline;\n' +
+            '    text-decoration-color: rgba(129, 140, 248, 0.3) !important;\n' +
+            '    text-underline-offset: 2px !important;\n' +
             '}\n' +
-            '\n' +
-            '/* Hide broken local file icons (served from /c:/Users/... paths) */\n' +
+
+            /* ── 8. Images & Icons ── */
             'img[src^="/c:"], img[src^="/C:"], img[src*="AppData"] {\n' +
             '    display: none !important;\n' +
             '}\n' +
-            '\n' +
-            '/* Override Tailwind default block display for embedded file icons */\n' +
             'img, svg {\n' +
             '    display: inline !important;\n' +
             '    vertical-align: middle !important;\n' +
             '}\n' +
-            '/* Force file-reference wrappers (icon + filename) to stay inline */\n' +
             'div:has(> img[src^="data:"]), div:has(> img[alt]), span:has(> img) {\n' +
             '    display: inline !important;\n' +
             '    vertical-align: middle !important;\n' +
             '}\n' +
-            '/* Inline-flex containers from Antigravity (e.g. file mentions) */\n' +
             '[class*="inline-flex"], [class*="inline-block"], [class*="items-center"]:has(img) {\n' +
             '    display: inline-flex !important;\n' +
             '    vertical-align: middle !important;\n' +
             '}\n' +
-            '\n' +
-            '/* Fix Inline Code - Ultra-compact */\n' +
+
+            /* ── 9. Code Blocks ── */
             ':not(pre) > code {\n' +
-            '    padding: 0px 2px !important;\n' +
-            '    border-radius: 2px !important;\n' +
-            '    background-color: rgba(255, 255, 255, 0.1) !important;\n' +
-            '    font-size: 0.82em !important;\n' +
-            '    line-height: 1 !important;\n' +
+            '    padding: 1px 5px !important;\n' +
+            '    border-radius: 4px !important;\n' +
+            '    background-color: rgba(99, 102, 241, 0.12) !important;\n' +
+            '    color: #c7d2fe !important;\n' +
+            '    font-size: 0.85em !important;\n' +
+            '    line-height: 1.2 !important;\n' +
             '    white-space: normal !important;\n' +
+            '    font-family: \'JetBrains Mono\', monospace !important;\n' +
             '}\n' +
-            '\n' +
             'pre, code, .monaco-editor-background, [class*="terminal"] {\n' +
-            '    background-color: #1e293b !important;\n' +
+            '    background-color: #0f172a !important;\n' +
             '    color: #e2e8f0 !important;\n' +
             '    font-family: \'JetBrains Mono\', monospace !important;\n' +
-            '    border-radius: 3px;\n' +
-            '    border: 1px solid #334155;\n' +
+            '    border-radius: 8px;\n' +
+            '    border: 1px solid rgba(51, 65, 85, 0.6);\n' +
             '}\n' +
-            '                \n' +
-            '/* Multi-line Code Block - Minimal */\n' +
             'pre {\n' +
             '    position: relative !important;\n' +
-            '    white-space: pre-wrap !important; \n' +
+            '    white-space: pre-wrap !important;\n' +
             '    word-break: break-word !important;\n' +
-            '    padding: 4px 6px !important;\n' +
-            '    margin: 2px 0 !important;\n' +
+            '    padding: 10px 12px !important;\n' +
+            '    margin: 6px 0 !important;\n' +
             '    display: block !important;\n' +
             '    width: 100% !important;\n' +
             '}\n' +
-            '                \n' +
             'pre.has-copy-btn {\n' +
-            '    padding-right: 28px !important;\n' +
+            '    padding-right: 32px !important;\n' +
             '}\n' +
-            '                \n' +
-            '/* Single-line Code Block - Minimal */\n' +
             'pre.single-line-pre {\n' +
             '    display: inline-block !important;\n' +
             '    width: auto !important;\n' +
             '    max-width: 100% !important;\n' +
-            '    padding: 0px 4px !important;\n' +
+            '    padding: 1px 6px !important;\n' +
             '    margin: 0px !important;\n' +
             '    vertical-align: middle !important;\n' +
-            '    background-color: #1e293b !important;\n' +
+            '    background-color: #0f172a !important;\n' +
             '    font-size: 0.85em !important;\n' +
             '}\n' +
-            '                \n' +
             'pre.single-line-pre > code {\n' +
             '    display: inline !important;\n' +
             '    white-space: nowrap !important;\n' +
             '}\n' +
-            '                \n' +
             'pre:not(.single-line-pre) > code {\n' +
             '    display: block !important;\n' +
             '    width: 100% !important;\n' +
@@ -372,69 +464,97 @@ async function loadSnapshot() {
             '    padding: 0 !important;\n' +
             '    margin: 0 !important;\n' +
             '}\n' +
-            '                \n' +
+
+            /* ── 10. Copy Button ── */
             '.mobile-copy-btn {\n' +
             '    position: absolute !important;\n' +
-            '    top: 2px !important;\n' +
-            '    right: 2px !important;\n' +
-            '    background: rgba(30, 41, 59, 0.5) !important;\n' +
-            '    color: #94a3b8 !important;\n' +
+            '    top: 6px !important;\n' +
+            '    right: 6px !important;\n' +
+            '    background: rgba(99, 102, 241, 0.15) !important;\n' +
+            '    color: #818cf8 !important;\n' +
             '    border: none !important;\n' +
-            '    width: 24px !important; \n' +
-            '    height: 24px !important;\n' +
+            '    width: 26px !important;\n' +
+            '    height: 26px !important;\n' +
             '    padding: 0 !important;\n' +
             '    cursor: pointer !important;\n' +
             '    display: flex !important;\n' +
             '    align-items: center !important;\n' +
             '    justify-content: center !important;\n' +
-            '    border-radius: 4px !important;\n' +
+            '    border-radius: 6px !important;\n' +
             '    transition: all 0.2s ease !important;\n' +
             '    -webkit-tap-highlight-color: transparent !important;\n' +
             '    z-index: 10 !important;\n' +
             '    margin: 0 !important;\n' +
             '}\n' +
-            '                \n' +
-            '.mobile-copy-btn:hover,\n' +
-            '.mobile-copy-btn:focus {\n' +
-            '    background: rgba(59, 130, 246, 0.2) !important;\n' +
-            '    color: #60a5fa !important;\n' +
+            '.mobile-copy-btn:hover, .mobile-copy-btn:focus {\n' +
+            '    background: rgba(99, 102, 241, 0.3) !important;\n' +
+            '    color: #a5b4fc !important;\n' +
             '}\n' +
-            '                \n' +
             '.mobile-copy-btn svg {\n' +
-            '    width: 16px !important;\n' +
-            '    height: 16px !important;\n' +
+            '    width: 14px !important;\n' +
+            '    height: 14px !important;\n' +
             '    stroke: currentColor !important;\n' +
             '    stroke-width: 2 !important;\n' +
             '    fill: none !important;\n' +
             '}\n' +
-            '                \n' +
+
+            /* ── 11. Blockquotes & Tables ── */
             'blockquote {\n' +
-            '    border-left: 3px solid #3b82f6 !important;\n' +
-            '    background: rgba(59, 130, 246, 0.1) !important;\n' +
+            '    border-left: 3px solid #6366f1 !important;\n' +
+            '    background: rgba(99, 102, 241, 0.06) !important;\n' +
             '    color: #cbd5e1 !important;\n' +
-            '    padding: 8px 12px !important;\n' +
+            '    padding: 10px 14px !important;\n' +
             '    margin: 8px 0 !important;\n' +
+            '    border-radius: 0 8px 8px 0 !important;\n' +
             '}\n' +
-            '\n' +
             'table {\n' +
             '    border-collapse: collapse !important;\n' +
             '    width: 100% !important;\n' +
-            '    border: 1px solid #334155 !important;\n' +
+            '    border: 1px solid rgba(51, 65, 85, 0.6) !important;\n' +
+            '    border-radius: 8px !important;\n' +
             '}\n' +
             'th, td {\n' +
-            '    border: 1px solid #334155 !important;\n' +
-            '    padding: 8px !important;\n' +
+            '    border: 1px solid rgba(51, 65, 85, 0.6) !important;\n' +
+            '    padding: 8px 10px !important;\n' +
             '    color: #e2e8f0 !important;\n' +
             '}\n' +
-            '\n' +
+            'th {\n' +
+            '    background: rgba(99, 102, 241, 0.08) !important;\n' +
+            '    font-weight: 600 !important;\n' +
+            '}\n' +
+
+            /* ── 12. Scrollbar & White BG Overrides ── */
             '::-webkit-scrollbar {\n' +
             '    width: 0 !important;\n' +
             '}\n' +
-            '                \n' +
             '[style*="background-color: rgb(255, 255, 255)"],\n' +
             '[style*="background-color: white"],\n' +
             '[style*="background: white"] {\n' +
             '    background-color: transparent !important;\n' +
+            '}\n' +
+
+            /* ── 13. Headings Polish ── */
+            '[data-testid="conversation-view"] h1,\n' +
+            '[data-testid="conversation-view"] h2,\n' +
+            '[data-testid="conversation-view"] h3 {\n' +
+            '    font-weight: 700 !important;\n' +
+            '    letter-spacing: -0.01em !important;\n' +
+            '    margin-top: 16px !important;\n' +
+            '    margin-bottom: 8px !important;\n' +
+            '}\n' +
+            '[data-testid="conversation-view"] h1 { font-size: 1.3em !important; }\n' +
+            '[data-testid="conversation-view"] h2 { font-size: 1.15em !important; }\n' +
+            '[data-testid="conversation-view"] h3 { font-size: 1.05em !important; }\n' +
+
+            /* ── 14. List Styling ── */
+            '[data-testid="conversation-view"] ul,\n' +
+            '[data-testid="conversation-view"] ol {\n' +
+            '    padding-left: 20px !important;\n' +
+            '    margin: 4px 0 !important;\n' +
+            '}\n' +
+            '[data-testid="conversation-view"] li {\n' +
+            '    margin: 2px 0 !important;\n' +
+            '    line-height: 1.6 !important;\n' +
             '}';
         styleTag.textContent = darkModeOverrides;
         chatContent.innerHTML = data.html;
