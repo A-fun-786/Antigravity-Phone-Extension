@@ -204,6 +204,7 @@ This tool is designed with a **"Local-First"** security model.
 - **🧠 Latest AI Models**: Automatically updated support for the latest model versions from Gemini, Claude, and OpenAI.
 - **💖 Support the Developer (NEW!)**: A dedicated heart icon in the mobile header allows users to support the project and the developer with a single tap, opening a premium support modal.
 - **📜 Premium Chat History (NEW!)**: Full-screen history management with a completely redesigned, sleek card-based UI. Features modern loading states, gorgeous gradients, and intelligent strictly-scoped scraping to safely extract past conversations without background noise. Dismissing the history view automatically triggers a remote Escape sequence on the desktop to keep your workspace clean.
+- **📎 Image Attachments (NEW!)**: Easily attach and send images directly from your phone's photo library or camera to the Antigravity desktop chat. Perfect for quickly sharing bug screenshots or mockups.
 - **➕ One-Tap New Chat (NEW!)**: Start a fresh conversation instantly from your phone without needing to touch your desktop.
 - **🖼️ Context Menu Icons (NEW!)**: Visual icons in the right-click menu for better navigation.
 - **🌍 Global Web Access**: Secure remote access via ngrok tunnel. Access your AI from mobile data with passcode protection.

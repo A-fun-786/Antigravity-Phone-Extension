@@ -20,6 +20,11 @@ This document describes the design, API endpoints, DOM scraping logic, and user 
    - Highlights files/components under development (Implementation Plans, Walkthroughs, Code Diff cards) in a touch-friendly carousel/slider.
    - Clicking an artifact opens a dedicated, full-screen viewport layer on the phone for comfortable reading.
 
+4. **Image Attachments (Remote Paste)**:
+   - Users can select images from their mobile device and send them directly to the Antigravity session.
+   - Images are converted to Base64 and remotely injected into the desktop `contenteditable` editor by simulating a clipboard `paste` event.
+   - Allows seamless sharing of bug screenshots or mockups without transferring files manually.
+
 ---
 
 ## 🛠 Architecture & API Endpoints

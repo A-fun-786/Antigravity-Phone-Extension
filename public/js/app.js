@@ -3,6 +3,8 @@ const chatContainer = document.getElementById('chatContainer');
 const chatContent = document.getElementById('chatContent');
 const messageInput = document.getElementById('messageInput');
 const sendBtn = document.getElementById('sendBtn');
+const attachmentBtn = document.getElementById('attachmentBtn');
+const imageInput = document.getElementById('imageInput');
 const scrollToBottomBtn = document.getElementById('scrollToBottom');
 const statusDot = document.getElementById('statusDot');
 const statusText = document.getElementById('statusText');
@@ -255,17 +257,18 @@ async function loadSnapshot() {
             '    --border-color: #334155;\n' +
             '}\n' +
             '\n' +
-            '#conversation, #chat, #cascade {\n' +
+            '#conversation, #chat, #cascade, [data-testid="conversation-view"] {\n' +
             '    background-color: transparent !important;\n' +
             '    color: var(--text-main) !important;\n' +
             '    font-family: \'Inter\', system-ui, sans-serif !important;\n' +
             '    position: relative !important;\n' +
             '    height: auto !important;\n' +
             '    width: 100% !important;\n' +
+            '    overflow: visible !important;\n' +
             '}\n' +
             '\n' +
             '/* Fix stacking BUT preserve absolute/fixed positioning for dropdowns */\n' +
-            '#conversation > div, #chat > div, #cascade > div {\n' +
+            '#conversation > div, #chat > div, #cascade > div, [data-testid="conversation-view"] > div {\n' +
             '    position: static !important;\n' +
             '}\n' +
             '/* Preserve absolute positioning needed for dropdowns, tooltips, popups */\n' +
@@ -274,7 +277,7 @@ async function loadSnapshot() {
             '    position: absolute !important;\n' +
             '}\n' +
             '\n' +
-            '#conversation p, #chat p, #cascade p, #conversation h1, #chat h1, #cascade h1, #conversation h2, #chat h2, #cascade h2, #conversation h3, #chat h3, #cascade h3, #conversation h4, #chat h4, #cascade h4, #conversation h5, #chat h5, #cascade h5, #conversation span, #chat span, #cascade span, #conversation div, #chat div, #cascade div, #conversation li, #chat li, #cascade li {\n' +
+            '#conversation p, #chat p, #cascade p, [data-testid="conversation-view"] p, #conversation h1, #chat h1, #cascade h1, [data-testid="conversation-view"] h1, #conversation h2, #chat h2, #cascade h2, [data-testid="conversation-view"] h2, #conversation h3, #chat h3, #cascade h3, [data-testid="conversation-view"] h3, #conversation h4, #chat h4, #cascade h4, [data-testid="conversation-view"] h4, #conversation h5, #chat h5, #cascade h5, [data-testid="conversation-view"] h5, #conversation span, #chat span, #cascade span, [data-testid="conversation-view"] span, #conversation div, #chat div, #cascade div, [data-testid="conversation-view"] div, #conversation li, #chat li, #cascade li, [data-testid="conversation-view"] li {\n' +
             '    color: inherit !important;\n' +
             '}\n' +
             '\n' +
@@ -284,7 +287,7 @@ async function loadSnapshot() {
             '    color: #e2e8f0 !important;\n' +
             '}\n' +
             '\n' +
-            '#conversation a, #chat a, #cascade a {\n' +
+            '#conversation a, #chat a, #cascade a, [data-testid="conversation-view"] a {\n' +
             '    color: #60a5fa !important;\n' +
             '    text-decoration: underline;\n' +
             '}\n' +
@@ -720,16 +723,35 @@ function scrollToBottom() {
     });
 }
 
+let attachedImageBase64 = null;
+const originalAttachmentIcon = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+    </svg>`;
+const attachedCheckmarkIcon = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"></polyline>
+    </svg>`;
+
 // --- Inputs ---
 async function sendMessage() {
     const message = messageInput.value.trim();
-    if (!message) return;
+    if (!message && !attachedImageBase64) return;
+
+    console.log("[Client] sendMessage called. Message:", message, "Has image:", !!attachedImageBase64);
 
     // Optimistic UI updates
     const previousValue = messageInput.value;
+    const previousImage = attachedImageBase64;
     messageInput.value = ''; // Clear immediately
     messageInput.style.height = 'auto'; // Reset height
     messageInput.blur(); // Close keyboard on mobile immediately
+    
+    attachedImageBase64 = null;
+    if (attachmentBtn) {
+        attachmentBtn.style.color = 'var(--text-muted)';
+        attachmentBtn.innerHTML = originalAttachmentIcon;
+    }
 
     sendBtn.disabled = true;
     sendBtn.style.opacity = '0.5';
@@ -746,10 +768,16 @@ async function sendMessage() {
             }
         }
 
+        console.log("[Client] Sending POST request to /send with payload size:", JSON.stringify({ message, image: previousImage }).length);
+
         const res = await fetchWithAuth('/send', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message })
+            body: JSON.stringify({ 
+                message, 
+                image: previousImage,
+                imageWaitMs: 1500 
+            })
         });
 
         // Always reload snapshot to check if message appeared
@@ -774,6 +802,65 @@ async function sendMessage() {
 
 // --- Event Listeners ---
 sendBtn.addEventListener('click', sendMessage);
+
+function compressImage(base64Str, maxWidth = 1200, maxHeight = 1200, quality = 0.7) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.src = base64Str;
+        img.onload = () => {
+            let width = img.width;
+            let height = img.height;
+
+            if (width > maxWidth || height > maxHeight) {
+                const ratio = Math.min(maxWidth / width, maxHeight / height);
+                width = Math.round(width * ratio);
+                height = Math.round(height * ratio);
+            }
+
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // Export as JPEG with configured quality
+            resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = () => {
+            // Fallback to original base64 if anything fails
+            resolve(base64Str);
+        };
+    });
+}
+
+if (attachmentBtn && imageInput) {
+    attachmentBtn.addEventListener('click', () => {
+        imageInput.click();
+    });
+
+    imageInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        console.log("[Client] Image file selected:", file.name, "size:", file.size, "bytes");
+
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            const rawBase64 = event.target.result;
+            attachedImageBase64 = await compressImage(rawBase64);
+            // Visual feedback
+            attachmentBtn.style.color = 'var(--success)';
+            attachmentBtn.innerHTML = attachedCheckmarkIcon;
+            
+            // Clear input so same file can be selected again
+            imageInput.value = '';
+        };
+        reader.onerror = () => {
+            imageInput.value = '';
+        };
+        reader.readAsDataURL(file);
+    });
+}
 
 refreshBtn.addEventListener('click', () => {
     // Refresh both Chat and State (Mode/Model)

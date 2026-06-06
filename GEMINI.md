@@ -38,6 +38,7 @@ antigravity_phone_chat/
     ├── CODE_DOCUMENTATION.md  # Architecture, API endpoints, data flow
     ├── CDP_EXPLORATION_GUIDE.md # CDP DOM exploration & model quotas [NEW]
     ├── INTERACTIVE_AGENT_MODE.md # Interactive Agent Mode, Sidebar Chats, Prompt Actions [NEW]
+    ├── BUG_TRACKING.md        # Central hub for known issues, squashed bugs, and testing
     ├── SECURITY.md            # HTTPS, CSP, auth model
     ├── DESIGN_PHILOSOPHY.md   # Why decisions were made
     ├── CONTRIBUTING.md        # Dev guidelines
@@ -49,10 +50,22 @@ antigravity_phone_chat/
 - **Backend**: Single `server.js` handles everything — Express HTTP/S server, WebSocket for real-time updates, CDP bridge to Antigravity.
 - **Frontend**: Vanilla HTML/CSS/JS in `public/`. No framework. No build step.
 - **CDP Flow**: `server.js` polls Antigravity every 1s via CDP → hashes DOM → broadcasts delta to phone via WebSocket.
+- **CDP DOM Selectors (CRITICAL)**: Antigravity's main chat container is `[data-testid="conversation-view"]` — NOT `#conversation`/`#chat`/`#cascade` (those are legacy). Sidebar pills use `[data-testid^="convo-pill-"]` inside `.bg-sidebar`. The editor is `[contenteditable="true"]`. Submit button is `[data-testid="send-button"]`, `[data-tooltip-id="input-send-button-send-tooltip"]`, `[aria-label="Send message"]`, or legacy `svg.lucide-arrow-right` closest `button`.
+- **clickElement()**: Searches `document` globally (not scoped to chat container). Defaults `index` to `0`. Filters visible elements only (`offsetParent !== null`). Used by `/switch-chat`, `/agent-action`, `/remote-click`.
+- **injectMessage()**: Finds `[contenteditable="true"]` with fallback from scoped → document-wide. Injects text via `execCommand("insertText")`, clears/attaches images to the file input, and clicks the send button (or falls back to Enter key event).
+- **captureSnapshot()**: Clones `[data-testid="conversation-view"]`, tags buttons with `.agent-allow-btn`/`.agent-deny-btn`/`.agent-review-btn` classes, strips input areas surgically (preserving action buttons).
 - **Model Quota / CDP Navigation**: `capture_models.js` automates Settings → Models navigation to write real-time stats to `parsed_model_quotas.json`. Integrates into `server.js` or phone connect quota UI. Refer to `Docs/CDP_EXPLORATION_GUIDE.md` first.
 - **Auth**: Signed httpOnly cookies. LAN auto-trusts. External requires password from `.env`.
 - **Tunnel**: `launcher.py` manages ngrok/cloudflare/pinggy tunnels as child processes.
 - **Security**: Strict CSP (no inline JS), XSS-safe HTML escaping, input sanitization via JSON.stringify.
+
+### ⚠️ Known Bug Patterns (Don't Repeat These)
+- **Never pass `undefined` index to clickElement** — it renders as `elements[undefined]` in CDP JS, which is always falsy.  
+- **Never scope querySelector to `#conversation`/`#chat`/`#cascade`** — use `[data-testid="conversation-view"]` as primary.
+- **Never fetch data/base64 URLs in browser CDP scripts** — CSP connect-src will block them. Decode base64 to Blobs/Files synchronously in JS.
+- **Never use backticks to nest template variables directly in CDP scripts** — use `JSON.stringify` on the server first, then embed the string literal directly.
+- **Never loop all CDP contexts blindly for mutations/actions** — this causes actions to execute multiple times (e.g. duplicate messages). Always use default-context-first pattern (`auxData?.isDefault === true`) and check for success before checking other contexts.
+- **Never rely on fixed icon classes like `svg.lucide-arrow-right` for send buttons** — Lexical editors render them dynamically and swap icons (like voice record vs send). Use robust selectors like `[data-testid="send-button"]`, `[data-tooltip-id="input-send-button-send-tooltip"]`, or `[aria-label="Send message"]`.
 
 ---
 
@@ -97,6 +110,16 @@ When a prompt matches one of these features, read the corresponding documentatio
 * **Role/Summary**: Headless settings traversal using CDP, parsing active AI model quotas, and writing usage data.
 * **Key Files**: `capture_models.js` (modal automation script), `parsed_model_quotas.json` (parsed output data).
 * **Routing Rule**: If the prompt involves API quotas, Gemini/Claude usage limits, Settings modal navigation, or parsing rate limits, read [CDP_EXPLORATION_GUIDE.md](file:///Users/mdaffanahmed/VS%20Code/Git%20Projects/antigravity_phone_chat/Docs/CDP_EXPLORATION_GUIDE.md) first.
+
+### 3. Bug Tracking & Issue Resolution
+* **Role/Summary**: Centralized hub for known issues, squash logs, and architectural bug patterns to prevent regressions and duplicate debugging.
+* **Key Files**: `Docs/BUG_TRACKING.md`
+* **Routing Rule**: If the prompt reports a bug, mentions an error, or asks to debug an issue, read [BUG_TRACKING.md](file:///Users/mdaffanahmed/VS%20Code/Git%20Projects/antigravity_phone_chat/Docs/BUG_TRACKING.md) to check for previously encountered issues or known limitations before taking action.
+
+### 4. Image Attachments & File Handling
+* **Role/Summary**: Real-time mobile-to-desktop photo attachment injection via drag-and-drop and temp-file link fallback.
+* **Key Files**: `server.js` (endpoint `/send` and `injectMessage`), `public/js/app.js` (`sendMessage` and `compressImage`), `public/temp_uploads/` (static file repository).
+* **Routing Rule**: If the prompt involves uploading files, attaching images, base64 payload sizes, or pasting images, read the Attachment & Send Button Failure section in [BUG_TRACKING.md](file:///Users/mdaffanahmed/VS%20Code/Git%20Projects/antigravity_phone_chat/Docs/BUG_TRACKING.md) and inspect the `injectMessage` function implementation in `server.js`.
 
 ---
 
