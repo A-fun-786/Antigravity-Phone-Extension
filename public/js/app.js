@@ -21,6 +21,18 @@ const modelText = document.getElementById('modelText');
 const historyLayer = document.getElementById('historyLayer');
 const historyList = document.getElementById('historyList');
 
+// Agent & Drawer Elements
+const hamburgerBtn = document.getElementById('hamburgerBtn');
+const drawerOverlay = document.getElementById('drawerOverlay');
+const sidebarDrawer = document.getElementById('sidebarDrawer');
+const drawerChatList = document.getElementById('drawerChatList');
+const drawerNewChatBtn = document.getElementById('drawerNewChatBtn');
+
+const artifactViewLayer = document.getElementById('artifactViewLayer');
+const closeArtifactBtn = document.getElementById('closeArtifactBtn');
+const artifactTitle = document.getElementById('artifactTitle');
+const artifactContent = document.getElementById('artifactContent');
+
 // New elements for event listeners
 const enableHttpsBtn = document.getElementById('enableHttpsBtn');
 const dismissSslBtn = document.querySelector('.dismiss-btn');
@@ -423,6 +435,107 @@ async function loadSnapshot() {
             '}';
         styleTag.textContent = darkModeOverrides;
         chatContent.innerHTML = data.html;
+
+        // Populate Sidebar Drawer if data exists
+        if (data.sidebar) {
+            drawerChatList.innerHTML = '';
+            
+            // 1. Render Projects
+            if (data.sidebar.projects && data.sidebar.projects.length > 0) {
+                data.sidebar.projects.forEach(project => {
+                    const projectSection = document.createElement('div');
+                    projectSection.className = 'drawer-project-section';
+                    
+                    const projectHeader = document.createElement('div');
+                    projectHeader.className = 'drawer-project-header';
+                    projectHeader.innerHTML = `
+                        <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                        <span>${project.name}</span>
+                    `;
+                    projectSection.appendChild(projectHeader);
+                    
+                    const projectChats = document.createElement('div');
+                    projectChats.className = 'drawer-project-chats';
+                    
+                    project.chats.forEach(chat => {
+                        const item = document.createElement('div');
+                        item.className = 'drawer-chat-item' + (chat.isActive ? ' active' : '');
+                        item.textContent = chat.title || 'New Conversation';
+                        item.addEventListener('click', async () => {
+                            toggleDrawer(false);
+                            try {
+                                await fetchWithAuth('/switch-chat', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ id: chat.id })
+                                });
+                                setTimeout(loadSnapshot, 500);
+                            } catch (e) {}
+                        });
+                        projectChats.appendChild(item);
+                    });
+                    
+                    projectSection.appendChild(projectChats);
+                    drawerChatList.appendChild(projectSection);
+                });
+            }
+            
+            // 2. Render General/Standalone Conversations
+            if (data.sidebar.conversations && data.sidebar.conversations.length > 0) {
+                const conversationsHeader = document.createElement('div');
+                conversationsHeader.className = 'drawer-section-header';
+                conversationsHeader.innerHTML = `
+                    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                    </svg>
+                    <span>Conversations</span>
+                `;
+                drawerChatList.appendChild(conversationsHeader);
+                
+                data.sidebar.conversations.forEach(chat => {
+                    const item = document.createElement('div');
+                    item.className = 'drawer-chat-item' + (chat.isActive ? ' active' : '');
+                    item.textContent = chat.title || 'New Conversation';
+                    item.addEventListener('click', async () => {
+                        toggleDrawer(false);
+                        try {
+                            await fetchWithAuth('/switch-chat', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ id: chat.id })
+                            });
+                            setTimeout(loadSnapshot, 500);
+                        } catch (e) {}
+                    });
+                    drawerChatList.appendChild(item);
+                });
+            }
+            
+            // 3. Fallback to flat chats if legacy structure or empty
+            if ((!data.sidebar.projects || data.sidebar.projects.length === 0) &&
+                (!data.sidebar.conversations || data.sidebar.conversations.length === 0) &&
+                data.sidebar.chats) {
+                data.sidebar.chats.forEach(chat => {
+                    const item = document.createElement('div');
+                    item.className = 'drawer-chat-item' + (chat.isActive ? ' active' : '');
+                    item.textContent = chat.title || 'New Conversation';
+                    item.addEventListener('click', async () => {
+                        toggleDrawer(false);
+                        try {
+                            await fetchWithAuth('/switch-chat', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ id: chat.id })
+                            });
+                            setTimeout(loadSnapshot, 500);
+                        } catch (e) {}
+                    });
+                    drawerChatList.appendChild(item);
+                });
+            }
+        }
 
 
         // Add mobile copy buttons to all code blocks
@@ -938,13 +1051,7 @@ function hideChatHistory() {
     }
 }
 
-historyBtn.addEventListener('click', showChatHistory);
-
-// --- Select Chat from History ---
 async function selectChat(title) {
-    // Visual reset while desktop switches conversation
-    chatContent.innerHTML = '<div class="loading-state"><div class="loading-spinner"></div><p>Switching Conversation...</p></div>';
-
     try {
         const res = await fetchWithAuth('/select-chat', {
             method: 'POST',
@@ -952,9 +1059,7 @@ async function selectChat(title) {
             body: JSON.stringify({ title })
         });
         const data = await res.json();
-
         if (data.success) {
-            // Persistent polling to catch delayed desktop render/update
             let attempts = 0;
             const poll = setInterval(async () => {
                 await loadSnapshot();
@@ -1281,3 +1386,98 @@ setInterval(fetchAppState, 5000);
 // Check chat status initially and periodically
 checkChatStatus();
 setInterval(checkChatStatus, 10000); // Check every 10 seconds
+
+
+/* =========================================
+   AGENT ACTIONS & DRAWER LOGIC
+   ========================================= */
+
+// Drawer Toggle
+function toggleDrawer(show) {
+    if (show) {
+        drawerOverlay.classList.add('active');
+        sidebarDrawer.classList.add('active');
+    } else {
+        drawerOverlay.classList.remove('active');
+        sidebarDrawer.classList.remove('active');
+    }
+}
+
+if (hamburgerBtn) hamburgerBtn.addEventListener('click', () => toggleDrawer(true));
+if (drawerOverlay) drawerOverlay.addEventListener('click', () => toggleDrawer(false));
+if (drawerNewChatBtn) {
+    drawerNewChatBtn.addEventListener('click', () => {
+        toggleDrawer(false);
+        startNewChat();
+    });
+}
+
+// Event Delegation for Agent Buttons and Artifacts
+chatContent.addEventListener('click', async (e) => {
+    const target = e.target;
+    
+    // Allow Button
+    const allowBtn = target.closest('.agent-allow-btn');
+    if (allowBtn) {
+        allowBtn.style.opacity = '0.5';
+        await executeAgentAction('allow');
+        return;
+    }
+    
+    // Deny Button
+    const denyBtn = target.closest('.agent-deny-btn');
+    if (denyBtn) {
+        denyBtn.style.opacity = '0.5';
+        await executeAgentAction('deny');
+        return;
+    }
+
+    // Review Button
+    const reviewBtn = target.closest('.agent-review-btn');
+    if (reviewBtn) {
+        reviewBtn.style.opacity = '0.5';
+        await executeAgentAction('review');
+        return;
+    }
+    
+    // Artifact Card
+    const artifactCard = target.closest('.artifact-card');
+    if (artifactCard) {
+        openArtifactView(artifactCard);
+        return;
+    }
+});
+
+async function executeAgentAction(action) {
+    try {
+        await fetchWithAuth('/agent-action', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action })
+        });
+        setTimeout(loadSnapshot, 500);
+    } catch (e) {
+        console.error('Agent action failed', e);
+    }
+}
+
+// Artifact Full Screen View
+function openArtifactView(cardElement) {
+    const title = cardElement.innerText.split('\n')[0] || 'Document';
+    artifactTitle.textContent = title;
+    
+    artifactContent.innerHTML = '';
+    const clone = cardElement.cloneNode(true);
+    clone.style.margin = '20px';
+    clone.style.background = 'transparent';
+    clone.style.border = 'none';
+    artifactContent.appendChild(clone);
+    
+    artifactViewLayer.classList.add('active');
+}
+
+if (closeArtifactBtn) {
+    closeArtifactBtn.addEventListener('click', () => {
+        artifactViewLayer.classList.remove('active');
+    });
+}

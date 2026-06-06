@@ -894,3 +894,255 @@ textarea::-webkit-scrollbar {
 .mt-4 {
     margin-top: 24px;
 }
+
+/* =========================================
+   AGENT MODE & SIDEBAR DRAWER CSS
+   ========================================= */
+
+/* Header Group for Hamburger */
+.header-title-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.hamburger-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.hamburger-btn:active {
+    background-color: var(--surface-hover);
+}
+
+/* Sidebar Drawer */
+.drawer-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    z-index: 2999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.drawer-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.sidebar-drawer {
+    position: fixed;
+    top: 0;
+    left: -85vw;
+    width: 85vw;
+    max-width: 320px;
+    height: 100vh;
+    background: var(--surface-bg);
+    z-index: 3000;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    transform: translateX(0);
+    border-right: 1px solid var(--border-color);
+}
+
+.sidebar-drawer.active {
+    transform: translateX(100%);
+}
+
+.drawer-header {
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.drawer-header h2 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.new-chat-drawer-btn {
+    background: transparent;
+    border: none;
+    color: var(--accent);
+    padding: 8px;
+    cursor: pointer;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.new-chat-drawer-btn:active {
+    background: rgba(59, 130, 246, 0.1);
+}
+
+.drawer-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px 10px;
+}
+
+/* Projects & Grouping in Sidebar */
+.drawer-project-section {
+    margin-bottom: 16px;
+}
+
+.drawer-project-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    opacity: 0.85;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    user-select: none;
+}
+
+.drawer-project-header svg {
+    color: var(--accent);
+    opacity: 0.9;
+    flex-shrink: 0;
+}
+
+.drawer-project-chats {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-left: 12px;
+    margin-top: 4px;
+    border-left: 1px dashed rgba(255, 255, 255, 0.08);
+    margin-left: 19px;
+}
+
+.drawer-section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    opacity: 0.85;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 12px;
+    margin-bottom: 4px;
+    user-select: none;
+}
+
+.drawer-section-header svg {
+    color: var(--text-secondary);
+    opacity: 0.7;
+    flex-shrink: 0;
+}
+
+/* Chat Items in Drawer */
+.drawer-chat-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 14px;
+    border-radius: 10px;
+    margin-bottom: 2px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 14px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+}
+
+.drawer-chat-item:active {
+    background: var(--surface-hover);
+    color: var(--text-primary);
+}
+
+.drawer-chat-item.active {
+    background: rgba(59, 130, 246, 0.12);
+    color: var(--accent);
+    font-weight: 500;
+}
+
+/* Action Buttons (Allow/Deny) */
+.agent-allow-btn, .agent-deny-btn, .agent-review-btn {
+    padding: 12px 20px !important;
+    border-radius: 12px !important;
+    font-weight: 600 !important;
+    font-size: 15px !important;
+    cursor: pointer !important;
+    transition: all 0.2s !important;
+    flex: 1 !important;
+    text-align: center !important;
+    justify-content: center !important;
+    display: flex !important;
+    margin: 4px !important;
+}
+
+.agent-allow-btn {
+    background: var(--accent) !important;
+    color: white !important;
+    border: none !important;
+}
+
+.agent-allow-btn:active {
+    opacity: 0.8 !important;
+    transform: scale(0.98) !important;
+}
+
+.agent-deny-btn {
+    background: transparent !important;
+    color: #ef4444 !important;
+    border: 1px solid rgba(239, 68, 68, 0.4) !important;
+}
+
+.agent-deny-btn:active {
+    background: rgba(239, 68, 68, 0.1) !important;
+    transform: scale(0.98) !important;
+}
+
+/* Artifact Cards */
+.artifact-card {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 12px !important;
+    padding: 16px !important;
+    margin: 12px 0 !important;
+    cursor: pointer !important;
+    transition: all 0.2s !important;
+    display: block !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+}
+
+.artifact-card:active {
+    background: rgba(255, 255, 255, 0.05) !important;
+    transform: scale(0.98) !important;
+}
+
+.artifact-layer .history-content {
+    background: var(--surface-bg);
+}

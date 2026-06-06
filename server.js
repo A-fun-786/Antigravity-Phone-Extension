@@ -116,22 +116,41 @@ function getJson(url) {
     });
 }
 
-// Find Antigravity CDP endpoint
-// Find Antigravity CDP endpoint
 async function discoverCDP() {
     const errors = [];
-    for (const port of PORTS) {
+    const portsToTry = [...PORTS];
+    
+    // Add macOS active port file to top priority
+    try {
+        const activePortFile = '/Users/mdaffanahmed/Library/Application Support/Antigravity/DevToolsActivePort';
+        if (fs.existsSync(activePortFile)) {
+            const content = fs.readFileSync(activePortFile, 'utf8');
+            const port = parseInt(content.split('\\n')[0].trim(), 10);
+            if (port && !portsToTry.includes(port)) {
+                portsToTry.unshift(port);
+            }
+        }
+    } catch (e) { }
+
+    for (const port of portsToTry) {
         try {
             const list = await getJson(`http://127.0.0.1:${port}/json/list`);
 
-            // Priority 1: Standard Workbench (The main window)
+            // Priority 1: Page targets (usually where Agent mode lives)
+            const page = list.find(t => t.type === 'page' && t.webSocketDebuggerUrl);
+            if (page) {
+                console.log('Found Agent page target:', page.title);
+                return { port, url: page.webSocketDebuggerUrl };
+            }
+
+            // Priority 2: Standard Workbench (The main window)
             const workbench = list.find(t => t.url?.includes('workbench.html') || (t.title && t.title.includes('workbench')));
             if (workbench && workbench.webSocketDebuggerUrl) {
                 console.log('Found Workbench target:', workbench.title);
                 return { port, url: workbench.webSocketDebuggerUrl };
             }
 
-            // Priority 2: Jetski/Launchpad (Fallback)
+            // Priority 3: Jetski/Launchpad (Fallback)
             const jetski = list.find(t => t.url?.includes('jetski') || t.title === 'Launchpad');
             if (jetski && jetski.webSocketDebuggerUrl) {
                 console.log('Found Jetski/Launchpad target:', jetski.title);
@@ -208,20 +227,17 @@ async function connectCDP(url) {
 }
 
 // Capture chat snapshot
+// Capture agent chat snapshot
 async function captureSnapshot(cdp) {
     const CAPTURE_SCRIPT = `(async () => {
-        const cascade = document.getElementById('conversation') || document.getElementById('chat') || document.getElementById('cascade');
+        // Target Agent Mode container exclusively
+        const cascade = document.querySelector('[data-testid="conversation-view"]');
         if (!cascade) {
-            // Debug info
-            const body = document.body;
-            const childIds = Array.from(body.children).map(c => c.id).filter(id => id).join(', ');
-            return { error: 'chat container not found', debug: { hasBody: !!body, availableIds: childIds } };
+            return { error: 'Agent container not found', debug: { active: false } };
         }
         
         const cascadeStyles = window.getComputedStyle(cascade);
-        
-        // Find the main scrollable container
-        const scrollContainer = cascade.querySelector('.overflow-y-auto, [data-scroll-area]') || cascade;
+        const scrollContainer = cascade;
         const scrollInfo = {
             scrollTop: scrollContainer.scrollTop,
             scrollHeight: scrollContainer.scrollHeight,
@@ -229,146 +245,38 @@ async function captureSnapshot(cdp) {
             scrollPercent: scrollContainer.scrollTop / (scrollContainer.scrollHeight - scrollContainer.clientHeight) || 0
         };
         
-        // Mark fixed/absolute elements in the original DOM before cloning
-        // This is the only way to reliably catch CSS-class-based positioning
-        const candidates = cascade.querySelectorAll('*');
-        candidates.forEach(el => {
-            try {
-                const pos = window.getComputedStyle(el).position;
-                if (pos === 'fixed' || pos === 'absolute') {
-                    el.setAttribute('data-ag-rem', 'true');
-                }
-            } catch(e) {}
-        });
-
-        // Clone cascade to modify it without affecting the original
+        // Clone cascade to modify it
         const clone = cascade.cloneNode(true);
         
-        // Clean up markers from the original DOM immediately after cloning
-        candidates.forEach(el => el.removeAttribute('data-ag-rem'));
+        // Tag interactive elements so frontend can hook them
+        // 1. Artifacts/Plans
+        clone.querySelectorAll('[class*="implementation"], [class*="plan"], a[href*=".md"]').forEach(el => {
+            el.classList.add('artifact-card');
+        });
         
-        // Aggressively remove the entire interaction/input/review area
+        // 2. Action Buttons (Allow/Deny/Review)
+        clone.querySelectorAll('button, div[role="button"]').forEach(btn => {
+            const text = (btn.innerText || '').trim();
+            if (text === 'Allow') btn.classList.add('agent-allow-btn');
+            if (text === 'Deny') btn.classList.add('agent-deny-btn');
+            if (text === 'Review Changes') btn.classList.add('agent-review-btn');
+        });
+
+        // Aggressively remove input areas to keep UI clean (we have our own input)
         try {
-            // 1. Identify common interaction wrappers by class combinations
             const interactionSelectors = [
-                '.relative.flex.flex-col.gap-8',
-                '.flex.grow.flex-col.justify-start.gap-8',
-                'div[class*="interaction-area"]',
-                '.p-1.bg-gray-500\\/10',
-                '.outline-solid.justify-between',
                 '[contenteditable="true"]',
                 '[data-lexical-editor]',
                 'form',
-                // New aggressive selectors for recent Antigravity versions
-                '.mx-8.mb-8',
-                '.mx-4.mb-4',
-                '.fixed.bottom-0',
-                '.absolute.bottom-0'
+                // Keep the bottom floating input out of the snapshot
+                '[class*="input"]',
+                '[data-testid*="input"]'
             ];
 
             interactionSelectors.forEach(selector => {
                 clone.querySelectorAll(selector).forEach(el => {
-                    try {
-                        // Protect elements that contain interactive buttons the user might need
-                        const text = (el.innerText || '').toLowerCase();
-                        const isActionArea = text.includes('allow') || text.includes('deny') || 
-                                           text.includes('review') || text.includes('run') ||
-                                           text.includes('confirm');
-                        
-                        // BUT: If it's specifically an input-related element, we DON'T protect it
-                        const isEditor = el.getAttribute('contenteditable') === 'true' || 
-                                       el.hasAttribute('data-lexical-editor') ||
-                                       text.includes('ask anything') ||
-                                       text.includes('to mention');
-                        if (!isEditor && isActionArea && selector !== '[contenteditable="true"]') {
-                            return; // Protect action bars
-                        }
-
-                        // For the editor or its container, remove it
-                        // Go up to find the main floating box if it's a deep selector
-                        let targetToRemove = el;
-                        if (isEditor || selector.includes('bottom-0')) {
-                             // Find the common container for the input box (usually has margins or padding)
-                             let parent = el.parentElement;
-                             for (let i = 0; i < 4; i++) {
-                                 if (!parent || parent === clone) break;
-                                 const pCls = (parent.className || '').toString();
-                                 if (pCls.includes('mx-') || pCls.includes('mb-') || pCls.includes('bg-')) {
-                                     targetToRemove = parent;
-                                 }
-                                 parent = parent.parentElement;
-                             }
-                        }
-                        
-                        if (targetToRemove && targetToRemove !== clone) {
-                            targetToRemove.remove();
-                        } else {
-                            el.remove();
-                        }
-                    } catch(e) {}
+                    try { el.remove(); } catch(e) {}
                 });
-            });
-
-            // 2. Text-based cleanup for stray status bars and redundant desktop inputs
-            const allElements = clone.querySelectorAll('*');
-            allElements.forEach(el => {
-                try {
-                    const text = (el.innerText || '').toLowerCase();
-                    const placeholder = (el.getAttribute('placeholder') || '').toLowerCase();
-                    const isInputPlaceholder = text.includes('ask anything') || 
-                                              text.includes('to mention') || 
-                                              placeholder.includes('ask anything');
-                    
-                    // IF it's the main chat box (contains placeholder text), remove its container
-                    if (isInputPlaceholder) {
-                        // Find the container (usually a few levels up)
-                        let container = el;
-                        for (let i = 0; i < 5; i++) {
-                            if (!container.parentElement || container.parentElement === clone) break;
-                            const cls = (container.className || '').toString();
-                            if (cls.includes('flex-col') || cls.includes('input') || cls.includes('area')) {
-                                container.remove();
-                                return;
-                            }
-                            container = container.parentElement;
-                        }
-                        el.remove();
-                        return;
-                    }
-                } catch(e) {}
-            });
-
-            // 3. NUCLEAR: If any editor or redundant UI remains, remove its entire branch
-            const redundantElements = clone.querySelectorAll('[contenteditable="true"], [data-lexical-editor], [role="textbox"], form, .mx-8.mb-8, .mx-4.mb-4');
-            redundantElements.forEach(el => {
-                try {
-                    let branch = el;
-                    // Go up to find the highest container that is still within the clone
-                    // This ensures we remove the entire "box" (with chips, submit btn, etc)
-                    while (branch.parentElement && branch.parentElement !== clone) {
-                        const p = branch.parentElement;
-                        const pCls = (p.className || '').toString().toLowerCase();
-                        // Stop going up if we hit a main message/conversation wrapper
-                        if (pCls.includes('message') || pCls.includes('bubble') || pCls.includes('conversation')) break;
-                        branch = p;
-                    }
-                    if (branch && branch !== clone) branch.remove();
-                    else el.remove();
-                } catch(e) {}
-            });
-
-            // 4. Force hide any fixed/absolute elements (desktop overlays)
-            // These were marked in the original before cloning to ensure accurate computed styles
-            clone.querySelectorAll('[data-ag-rem]').forEach(el => {
-                try {
-                    const text = (el.innerText || '').toLowerCase();
-                    // Exclude Action Bars we want to keep
-                    if (text.includes('allow') || text.includes('deny') || text.includes('review')) {
-                        el.removeAttribute('data-ag-rem');
-                        return;
-                    }
-                    el.remove();
-                } catch(e) {}
             });
         } catch (globalErr) { }
 
@@ -391,10 +299,7 @@ async function captureSnapshot(cdp) {
         });
         await Promise.all(promises);
 
-        // Fix inline file references: Antigravity nests <div> elements inside
-        // <span> and <p> tags (e.g. file-type icons). Browsers auto-close <p> and
-        // <span> when they encounter a <div>, causing unwanted line breaks.
-        // Solution: Convert any <div> inside an inline parent to a <span>.
+        // Fix inline file references (div inside p/span)
         try {
             const inlineTags = new Set(['SPAN', 'P', 'A', 'LABEL', 'EM', 'STRONG', 'CODE']);
             const allDivs = Array.from(clone.querySelectorAll('div'));
@@ -409,7 +314,6 @@ async function captureSnapshot(cdp) {
                         
                     if (parentIsInline) {
                         const span = document.createElement('span');
-                        // MOVE children instead of copying (prevents orphaning nested divs)
                         while (div.firstChild) {
                             span.appendChild(div.firstChild);
                         }
@@ -451,9 +355,28 @@ async function captureSnapshot(cdp) {
         };
     })()`;
 
-    for (const ctx of cdp.contexts) {
+    // Try default context first (fastest)
+    const defaultCtx = cdp.contexts.find(ctx => ctx.auxData?.isDefault === true) || cdp.contexts[0];
+    
+    if (defaultCtx) {
         try {
-            // console.log(`Trying context ${ctx.id} (${ctx.name || ctx.origin})...`);
+            const result = await cdp.call("Runtime.evaluate", {
+                expression: CAPTURE_SCRIPT,
+                returnByValue: true,
+                awaitPromise: true,
+                contextId: defaultCtx.id
+            });
+
+            if (result.result?.value && !result.result.value.error) {
+                return result.result.value;
+            }
+        } catch (e) { }
+    }
+
+    // Fallback to all contexts
+    for (const ctx of cdp.contexts) {
+        if (ctx.id === defaultCtx?.id) continue;
+        try {
             const result = await cdp.call("Runtime.evaluate", {
                 expression: CAPTURE_SCRIPT,
                 returnByValue: true,
@@ -461,26 +384,88 @@ async function captureSnapshot(cdp) {
                 contextId: ctx.id
             });
 
-            if (result.exceptionDetails) {
-                // console.log(`Context ${ctx.id} exception:`, result.exceptionDetails);
-                continue;
+            if (result.result?.value && !result.result.value.error) {
+                return result.result.value;
             }
-
-            if (result.result && result.result.value) {
-                const val = result.result.value;
-                if (val.error) {
-                    // console.log(`Context ${ctx.id} script error:`, val.error);
-                    // if (val.debug) console.log(`   Debug info:`, JSON.stringify(val.debug));
-                } else {
-                    return val;
-                }
-            }
-        } catch (e) {
-            console.log(`Context ${ctx.id} connection error:`, e.message);
-        }
+        } catch (e) { }
     }
 
     return null;
+}
+
+// Capture sidebar state (active chats)
+async function captureSidebar(cdp) {
+    const SCRIPT = `(() => {
+        const sidebar = document.querySelector('.bg-sidebar');
+        if (!sidebar) return { error: 'Sidebar not found' };
+        
+        const sections = Array.from(sidebar.querySelectorAll('[class*="group/section"]'));
+        const result = {
+            projects: [],
+            conversations: []
+        };
+        
+        sections.forEach(sec => {
+            const projectCard = sec.querySelector('[data-project-card="true"]');
+            const projectTitleEl = projectCard || sec.querySelector('h2');
+            let sectionName = '';
+            if (projectTitleEl) {
+                sectionName = (projectTitleEl.innerText || '').split('\\n')[0].trim();
+            }
+            
+            const pills = Array.from(sec.querySelectorAll('[data-testid^="convo-pill-"]'));
+            const chats = pills.map(pill => {
+                const parent = pill.closest('div');
+                const isActive = parent && (parent.className.includes('bg-sidebar-muted') || parent.className.includes('bg-accent'));
+                return {
+                    id: pill.getAttribute('data-testid').replace('convo-pill-', ''),
+                    title: (pill.innerText || '').trim(),
+                    isActive
+                };
+            });
+            
+            if (chats.length === 0) return;
+            
+            if (projectCard || (sectionName && sectionName !== 'Conversations')) {
+                result.projects.push({
+                    name: sectionName || 'Project',
+                    chats
+                });
+            } else {
+                result.conversations.push(...chats);
+            }
+        });
+        
+        // Fallback: If no section structure was parsed but there are convo-pills, put them in a flat list
+        if (result.projects.length === 0 && result.conversations.length === 0) {
+            const pills = Array.from(sidebar.querySelectorAll('[data-testid^="convo-pill-"]'));
+            result.conversations = pills.map(pill => {
+                const parent = pill.closest('div');
+                const isActive = parent && (parent.className.includes('bg-sidebar-muted') || parent.className.includes('bg-accent'));
+                return {
+                    id: pill.getAttribute('data-testid').replace('convo-pill-', ''),
+                    title: (pill.innerText || '').trim(),
+                    isActive
+                };
+            });
+        }
+        
+        return result;
+    })()`;
+
+    const defaultCtx = cdp.contexts.find(ctx => ctx.auxData?.isDefault === true) || cdp.contexts[0];
+    if (defaultCtx) {
+        try {
+            const result = await cdp.call("Runtime.evaluate", {
+                expression: SCRIPT,
+                returnByValue: true,
+                awaitPromise: true,
+                contextId: defaultCtx.id
+            });
+            if (result.result?.value) return result.result.value;
+        } catch (e) {}
+    }
+    return { projects: [], conversations: [] };
 }
 
 // Inject message into Antigravity
@@ -1591,7 +1576,6 @@ async function startPolling(wss) {
                 isConnecting = true;
             }
             if (cdpConnection) {
-                // Was connected, now lost
                 console.log('🔄 CDP connection lost. Attempting to reconnect...');
                 cdpConnection = null;
             }
@@ -1601,24 +1585,23 @@ async function startPolling(wss) {
                     console.log('✅ CDP Connection established from polling loop');
                     isConnecting = false;
                 }
-            } catch (err) {
-                // Not found yet, just wait for next cycle
-            }
-            setTimeout(poll, 2000); // Try again in 2 seconds if not found
+            } catch (err) {}
+            setTimeout(poll, 2000);
             return;
         }
 
         try {
             const snapshot = await captureSnapshot(cdpConnection);
+            const sidebar = await captureSidebar(cdpConnection);
+            
             if (snapshot && !snapshot.error) {
-                const hash = hashString(snapshot.html);
+                snapshot.sidebar = sidebar; // Attach sidebar data to snapshot
+                const hash = hashString(snapshot.html + JSON.stringify(sidebar));
 
-                // Only update if content changed
                 if (hash !== lastSnapshotHash) {
                     lastSnapshot = snapshot;
                     lastSnapshotHash = hash;
 
-                    // Broadcast to all connected clients
                     wss.clients.forEach(client => {
                         if (client.readyState === WebSocket.OPEN) {
                             client.send(JSON.stringify({
@@ -1627,27 +1610,19 @@ async function startPolling(wss) {
                             }));
                         }
                     });
-
-                    console.log(`📸 Snapshot updated(hash: ${hash})`);
                 }
             } else {
-                // Snapshot is null or has error
                 const now = Date.now();
                 if (!lastErrorLog || now - lastErrorLog > 10000) {
                     const errorMsg = snapshot?.error || 'No valid snapshot captured (check contexts)';
                     console.warn(`⚠️  Snapshot capture issue: ${errorMsg} `);
-                    if (errorMsg.includes('container not found')) {
-                        console.log('   (Tip: Ensure an active chat is open in Antigravity)');
-                    }
-                    if (cdpConnection.contexts.length === 0) {
-                        console.log('   (Tip: No active execution contexts found. Try interacting with the Antigravity window)');
-                    }
                     lastErrorLog = now;
                 }
             }
         } catch (err) {
             console.error('Poll error:', err.message);
         }
+
 
         setTimeout(poll, POLL_INTERVAL);
     };
@@ -2186,6 +2161,33 @@ async function main() {
             if (!title) return res.status(400).json({ error: 'Chat title required' });
             if (!cdpConnection) return res.status(503).json({ error: 'CDP disconnected' });
             const result = await selectChat(cdpConnection, title);
+            res.json(result);
+        });
+
+        // Switch Chat (by ID)
+        app.post('/switch-chat', async (req, res) => {
+            const { id } = req.body;
+            if (!id) return res.status(400).json({ error: 'Chat ID required' });
+            if (!cdpConnection) return res.status(503).json({ error: 'CDP disconnected' });
+            const result = await clickElement(cdpConnection, { selector: `[data-testid="convo-pill-${id}"]` });
+            res.json(result);
+        });
+
+        // Agent Action (Allow/Deny/Review)
+        app.post('/agent-action', async (req, res) => {
+            const { action } = req.body; // 'allow', 'deny', 'review'
+            if (!action) return res.status(400).json({ error: 'Action required' });
+            if (!cdpConnection) return res.status(503).json({ error: 'CDP disconnected' });
+            
+            const textContentMap = {
+                'allow': 'Allow',
+                'deny': 'Deny',
+                'review': 'Review Changes'
+            };
+            const textContent = textContentMap[action];
+            if (!textContent) return res.status(400).json({ error: 'Invalid action' });
+
+            const result = await clickElement(cdpConnection, { selector: 'button, div[role="button"]', textContent });
             res.json(result);
         });
 

@@ -37,6 +37,7 @@ antigravity_phone_chat/
 └── Docs:
     ├── CODE_DOCUMENTATION.md  # Architecture, API endpoints, data flow
     ├── CDP_EXPLORATION_GUIDE.md # CDP DOM exploration & model quotas [NEW]
+    ├── INTERACTIVE_AGENT_MODE.md # Interactive Agent Mode, Sidebar Chats, Prompt Actions [NEW]
     ├── SECURITY.md            # HTTPS, CSP, auth model
     ├── DESIGN_PHILOSOPHY.md   # Why decisions were made
     ├── CONTRIBUTING.md        # Dev guidelines
@@ -83,6 +84,22 @@ You do NOT need to memorize skill names. I route automatically based on your des
 
 ---
 
+## 🚀 Feature Modules & Documentation Routing
+
+When a prompt matches one of these features, read the corresponding documentation file before writing code:
+
+### 1. Interactive Agent Mode
+* **Role/Summary**: Real-time mirroring of the active Agent conversation, sidebar chat list segregated by project with custom styles/icons, direct prompt action buttons (Allow/Deny/Review), and fullscreen artifact viewer (Implementation plans, Walkthroughs, Diffs).
+* **Key Files**: `server.js` (endpoints `/switch-chat`, `/agent-action`, `captureSidebar`), `public/js/app.js` (drawer population, full-screen artifact viewer event handlers), `public/css/style.css` (drawer transitions and layout).
+* **Routing Rule**: If the prompt involves sidebar chats, Allow/Deny buttons, or artifact rendering on the phone connect screen, read [INTERACTIVE_AGENT_MODE.md](file:///Users/mdaffanahmed/VS%20Code/Git%20Projects/antigravity_phone_chat/Docs/INTERACTIVE_AGENT_MODE.md) first.
+
+### 2. Model Quota & Usage Monitoring
+* **Role/Summary**: Headless settings traversal using CDP, parsing active AI model quotas, and writing usage data.
+* **Key Files**: `capture_models.js` (modal automation script), `parsed_model_quotas.json` (parsed output data).
+* **Routing Rule**: If the prompt involves API quotas, Gemini/Claude usage limits, Settings modal navigation, or parsing rate limits, read [CDP_EXPLORATION_GUIDE.md](file:///Users/mdaffanahmed/VS%20Code/Git%20Projects/antigravity_phone_chat/Docs/CDP_EXPLORATION_GUIDE.md) first.
+
+---
+
 ## 📏 Token Budget Guidelines
 
 ### For the Agent:
@@ -91,8 +108,3 @@ You do NOT need to memorize skill names. I route automatically based on your des
 - **One edit per turn.** Make one logical change, verify it, then move to the next. Don't batch unrelated edits.
 - **Skip verification for trivial changes.** Comment additions, typo fixes, and doc edits don't need `run_command` verification.
 - **Never generate images unless explicitly asked.** No mock-ups, no diagrams unless the user says "show me".
-
-### For the User:
-- **Be specific.** "Fix the scroll sync bug where phone scroll doesn't update desktop" is better than "fix scrolling".
-- **Name the file if you know it.** "In `server.js`, update `captureSnapshot()` to..." saves tokens vs. "somewhere in the backend..."
-- **One task per message.** Compound requests ("do X and also Y and also Z") waste tokens on context-switching.
