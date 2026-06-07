@@ -37,6 +37,17 @@ let AUTH_TOKEN = 'ag_default_token';
 let cdpConnection = null;
 let lastSnapshot = null;
 let lastSnapshotHash = null;
+let cachedModels = [
+    "Gemini 3.5 Flash (High)",
+    "Gemini 3.5 Flash (Medium)",
+    "Gemini 3.5 Flash (Low)",
+    "Gemini 3.1 Pro (High)",
+    "Gemini 3.1 Pro (Low)",
+    "Claude Sonnet 4.6 (Thinking)",
+    "Claude Opus 4.6 (Thinking)",
+    "GPT-OSS 120B (Medium)"
+];
+let modelsSynced = false;
 
 // Kill any existing process on the server port (prevents EADDRINUSE)
 function killPortProcess(port) {
@@ -1104,6 +1115,94 @@ async function setModel(cdp, modelName) {
     return { error: 'Context failed' };
 }
 
+// Sync available models from Antigravity by briefly opening the model selector dropdown
+async function syncModelsFromCDP(cdp) {
+    if (!cdp || !cdp.contexts || cdp.contexts.length === 0) return null;
+    const defaultCtx = cdp.contexts.find(ctx => ctx.auxData?.isDefault === true) || cdp.contexts[0];
+    if (!defaultCtx) return null;
+
+    const EXP = `(async () => {
+        try {
+            const KNOWN_KEYWORDS = ["Gemini", "Claude", "GPT"];
+            
+            // Find model button specifically outside the sidebar
+            const modelBtn = Array.from(document.querySelectorAll('button, [role="button"], div[role="button"]'))
+                .find(el => {
+                    if (el.closest('.bg-sidebar, [role="navigation"], [data-testid="sidebar-drawer"]')) return false;
+                    const text = el.innerText || '';
+                    return KNOWN_KEYWORDS.some(k => text.includes(k)) && el.offsetParent !== null;
+                });
+
+            if (!modelBtn) return { error: 'Model button not found' };
+
+            // Check if dropdown is already open
+            let isAlreadyOpen = !!document.querySelector('[role="dialog"], [role="listbox"], [role="menu"], [data-radix-popper-content-wrapper]');
+            
+            if (!isAlreadyOpen) {
+                modelBtn.click();
+                await new Promise(r => setTimeout(r, 600));
+            }
+
+            let visibleDialog = Array.from(document.querySelectorAll('[role="dialog"], [role="listbox"], [role="menu"], [data-radix-popper-content-wrapper]'))
+                .find(d => d.offsetHeight > 0);
+
+            let models = [];
+            if (visibleDialog) {
+                const options = Array.from(visibleDialog.querySelectorAll('[role="menuitem"], [role="option"], button, [role="button"]'));
+                if (options.length > 0) {
+                    models = options.map(el => el.innerText.trim().split('\\n')[0].trim()).filter(Boolean);
+                } else {
+                    const leaves = Array.from(visibleDialog.querySelectorAll('*'))
+                        .filter(el => el.children.length === 0 && el.innerText?.trim());
+                    const seen = new Set();
+                    for (const el of leaves) {
+                        const txt = el.innerText.trim().split('\\n')[0].trim();
+                        if (KNOWN_KEYWORDS.some(k => txt.includes(k)) && txt.length < 50 && !seen.has(txt)) {
+                            seen.add(txt);
+                            models.push(txt);
+                        }
+                    }
+                }
+            } else {
+                const options = Array.from(document.querySelectorAll('[role="menuitem"], [role="option"]'))
+                    .filter(el => el.offsetParent !== null);
+                models = options.map(el => el.innerText.trim().split('\\n')[0].trim()).filter(Boolean);
+            }
+
+            if (!isAlreadyOpen) {
+                modelBtn.click();
+                await new Promise(r => setTimeout(r, 200));
+                document.body.click();
+            }
+
+            models = Array.from(new Set(models))
+                .filter(m => KNOWN_KEYWORDS.some(k => m.includes(k)) && m.length < 50);
+
+            return { models };
+        } catch(err) {
+            return { error: err.toString() };
+        }
+    })()`;
+
+    try {
+        const res = await cdp.call("Runtime.evaluate", {
+            expression: EXP,
+            returnByValue: true,
+            awaitPromise: true,
+            contextId: defaultCtx.id
+        });
+        if (res.result?.value && !res.result.value.error && res.result.value.models) {
+            return res.result.value.models;
+        }
+        if (res.result?.value?.error) {
+            console.warn(`[SYNC-MODELS] CDP returned error: ${res.result.value.error}`);
+        }
+    } catch (e) {
+        console.warn(`[SYNC-MODELS] Failed to sync models via CDP: ${e.message}`);
+    }
+    return null;
+}
+
 // Start New Chat - Click the + button at the TOP of the chat window (NOT the context/media + button)
 async function startNewChat(cdp) {
     const EXP = `(async () => {
@@ -1170,6 +1269,57 @@ async function startNewChat(cdp) {
     }
     return { error: 'Context failed' };
 }
+
+// Start New Chat in a Specific Project
+async function startNewProjectChat(cdp, projectName) {
+    const EXP = `(async () => {
+        try {
+            const sidebar = document.querySelector('.bg-sidebar');
+            if (!sidebar) return { error: 'Sidebar not found' };
+            
+            const sections = Array.from(sidebar.querySelectorAll('[class*="group/section"]'));
+            for (const sec of sections) {
+                const projectCard = sec.querySelector('[data-project-card="true"]');
+                const projectTitleEl = projectCard || sec.querySelector('h2');
+                let sectionName = '';
+                if (projectTitleEl) {
+                    sectionName = (projectTitleEl.innerText || '').split('\\n')[0].trim();
+                }
+                
+                if (sectionName === ${JSON.stringify(projectName)}) {
+                    const buttons = Array.from(sec.querySelectorAll('button, [role="button"], a'));
+                    const plusBtn = buttons.find(btn => {
+                        if (btn.offsetParent === null) return false;
+                        return btn.querySelector('svg.lucide-plus') || 
+                               btn.querySelector('svg.lucide-square-plus') ||
+                               btn.querySelector('svg[class*="plus"]') ||
+                               (btn.getAttribute('aria-label') || '').toLowerCase().includes('new');
+                    });
+                    
+                    if (plusBtn) {
+                        plusBtn.click();
+                        return { success: true, method: 'project-plus-btn' };
+                    }
+                }
+            }
+            return { error: 'Project or new chat button not found' };
+        } catch (e) { return { error: e.toString() }; }
+    })()`;
+
+    for (const ctx of cdp.contexts) {
+        try {
+            const res = await cdp.call("Runtime.evaluate", {
+                expression: EXP,
+                returnByValue: true,
+                awaitPromise: true,
+                contextId: ctx.id
+            });
+            if (res.result?.value?.success) return res.result.value;
+        } catch (e) { }
+    }
+    return { error: 'Context failed' };
+}
+
 // Get Chat History - Click history button and scrape conversations
 async function getChatHistory(cdp) {
     const EXP = `(async () => {
@@ -1624,6 +1774,82 @@ async function hasChatOpen(cdp) {
     return { hasChat: false, hasMessages: false, editorFound: false };
 }
 
+// Get Right Pane Snapshot
+async function getRightPaneSnapshot(cdp) {
+    const EXP = `(() => {
+        try {
+            const chat = document.querySelector('[data-testid="conversation-view"]');
+            if (!chat) return '<div style="padding: 20px; color: #94a3b8; text-align: center;">No active chat view found.</div>';
+            
+            let rightPane = null;
+            
+            // 1. Try explicit IDs often used in AG
+            const explicit = document.querySelector('[data-testid*="artifact"], [data-testid*="right-panel"], [data-testid*="review"]');
+            if (explicit && explicit.offsetParent) {
+                rightPane = explicit;
+            } else {
+                // 2. Heuristic search: Find a large container on the right side of the screen
+                const allElements = Array.from(document.querySelectorAll('div, aside, section, main'));
+                const candidates = allElements.filter(el => {
+                    if (!el.offsetParent) return false;
+                    const rect = el.getBoundingClientRect();
+                    // Must be reasonably large
+                    if (rect.width < 200 || rect.height < 200) return false;
+                    // Center of the element must be on the right half of the screen
+                    if (rect.left + (rect.width / 2) < window.innerWidth / 2) return false;
+                    // It should not wrap the entire screen
+                    if (rect.width > window.innerWidth * 0.9) return false;
+                    // It should not be the conversation view itself or its parent
+                    if (el === chat || el.contains(chat) || chat.contains(el)) return false;
+                    return true;
+                });
+                
+                if (candidates.length > 0) {
+                    // Sort by area (smallest first) to get the most specific container
+                    candidates.sort((a, b) => {
+                        const aRect = a.getBoundingClientRect();
+                        const bRect = b.getBoundingClientRect();
+                        return (aRect.width * aRect.height) - (bRect.width * bRect.height);
+                    });
+                    rightPane = candidates[0];
+                }
+            }
+            
+            if (!rightPane) {
+                return '<div style="padding: 20px; color: #94a3b8; text-align: center; margin-top: 50px;">Right pane is not open on desktop.</div>';
+            }
+            
+            const clone = rightPane.cloneNode(true);
+            
+            // Strip hidden elements to save payload
+            clone.querySelectorAll('*').forEach(el => {
+                if (el.style && el.style.display === 'none') {
+                    el.remove();
+                }
+            });
+            
+            return clone.innerHTML;
+        } catch (e) {
+            return '<div style="padding: 20px; color: #ef4444;">Error capturing pane: ' + e.message + '</div>';
+        }
+    })()`;
+
+    for (const ctx of cdp.contexts) {
+        try {
+            const res = await cdp.call("Runtime.evaluate", {
+                expression: EXP,
+                returnByValue: true,
+                contextId: ctx.id
+            });
+            if (res.result && res.result.value) {
+                return { hasFiles: true, html: res.result.value };
+            }
+        } catch (e) { }
+    }
+    
+    return { hasFiles: false, html: '' };
+}
+
 // Get App State (Mode & Model)
 async function getAppState(cdp) {
     const EXP = `(async () => {
@@ -2018,6 +2244,18 @@ async function createServer() {
         res.json(result);
     });
 
+    // Get Available Models
+    app.get('/available-models', async (req, res) => {
+        if (!cdpConnection) return res.json({ models: cachedModels });
+        const models = await syncModelsFromCDP(cdpConnection);
+        if (models && models.length > 0) {
+            cachedModels = models;
+            res.json({ models });
+        } else {
+            res.json({ models: cachedModels }); // return cached fallback
+        }
+    });
+
     // Set Model
     app.post('/set-model', async (req, res) => {
         const { model } = req.body;
@@ -2308,6 +2546,9 @@ async function createServer() {
         }
 
         console.log('📱 Client connected (Authenticated)');
+        
+        // Reset sync flag so that we refresh the model list from Antigravity for this new session
+        modelsSynced = false;
 
         ws.on('close', () => {
             console.log('📱 Client disconnected');
@@ -2350,8 +2591,22 @@ async function main() {
 
         // Get App State
         app.get('/app-state', async (req, res) => {
-            if (!cdpConnection) return res.json({ mode: 'Unknown', model: 'Unknown' });
+            if (!cdpConnection) return res.json({ mode: 'Unknown', model: 'Unknown', models: cachedModels });
+            
+            if (!modelsSynced) {
+                modelsSynced = true;
+                syncModelsFromCDP(cdpConnection).then(models => {
+                    if (models && models.length > 0) {
+                        cachedModels = models;
+                        console.log(`[SYNC-MODELS] Dynamic sync: ${models.length} models loaded: ${models.join(', ')}`);
+                    } else {
+                        modelsSynced = false;
+                    }
+                });
+            }
+
             const result = await getAppState(cdpConnection);
+            result.models = cachedModels;
             res.json(result);
         });
 
@@ -2359,6 +2614,15 @@ async function main() {
         app.post('/new-chat', async (req, res) => {
             if (!cdpConnection) return res.status(503).json({ error: 'CDP disconnected' });
             const result = await startNewChat(cdpConnection);
+            res.json(result);
+        });
+
+        // Start New Chat in Project
+        app.post('/new-project-chat', async (req, res) => {
+            const { projectName } = req.body;
+            if (!projectName) return res.status(400).json({ error: 'Project name required' });
+            if (!cdpConnection) return res.status(503).json({ error: 'CDP disconnected' });
+            const result = await startNewProjectChat(cdpConnection, projectName);
             res.json(result);
         });
 
@@ -2416,6 +2680,13 @@ async function main() {
         app.get('/chat-status', async (req, res) => {
             if (!cdpConnection) return res.json({ hasChat: false, hasMessages: false, editorFound: false });
             const result = await hasChatOpen(cdpConnection);
+            res.json(result);
+        });
+
+        // Get Right Pane
+        app.get('/api/planning-files', async (req, res) => {
+            if (!cdpConnection) return res.json({ error: 'CDP disconnected', hasFiles: false });
+            const result = await getRightPaneSnapshot(cdpConnection);
             res.json(result);
         });
 

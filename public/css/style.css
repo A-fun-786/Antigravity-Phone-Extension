@@ -1179,3 +1179,177 @@ textarea::-webkit-scrollbar {
 .artifact-layer .history-content {
     background: var(--surface-bg);
 }
+/* =========================================
+   PLANNING PANE CSS
+   ========================================= */
+
+.planning-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-main);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    opacity: 0.8;
+}
+
+.planning-btn:hover, .planning-btn:active {
+    background: rgba(255, 255, 255, 0.1);
+    opacity: 1;
+}
+
+.planning-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+.planning-tabs {
+    display: flex;
+    background: rgba(30, 41, 59, 0.9);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.planning-tab {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    padding: 12px 0;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+.planning-tab.active {
+    color: var(--accent);
+    border-bottom: 2px solid var(--accent);
+}
+
+.planning-font-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.font-control-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: var(--text-main);
+    border-radius: 4px;
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.font-control-btn:active {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.planning-content {
+    background: var(--bg-app);
+    padding: 20px;
+    line-height: 1.6;
+    font-size: 15px; /* base font size */
+    color: rgba(255, 255, 255, 0.9);
+    word-wrap: break-word;
+}
+
+.planning-content h1, .planning-content h2, .planning-content h3 {
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    color: #fff;
+    font-weight: 600;
+}
+
+.planning-content h1 { font-size: 1.4em; }
+.planning-content h2 { font-size: 1.2em; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 0.3em; }
+.planning-content h3 { font-size: 1.1em; }
+
+.planning-content p {
+    margin-bottom: 1em;
+}
+
+.planning-content ul, .planning-content ol {
+    padding-left: 24px;
+    margin-bottom: 1em;
+}
+
+.planning-content li {
+    margin-bottom: 0.5em;
+}
+
+/* Markdown Task List */
+.planning-content li.task-list-item {
+    list-style-type: none;
+    margin-left: -24px;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.planning-content input[type="checkbox"] {
+    margin-top: 4px;
+    cursor: not-allowed;
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent);
+}
+
+/* Code Blocks */
+.planning-content pre {
+    background: #1e1e1e;
+    padding: 12px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin-bottom: 1em;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.9em;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.planning-content code {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 2px 4px;
+    border-radius: 4px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 0.9em;
+}
+
+.planning-content pre code {
+    background: transparent;
+    padding: 0;
+}
+
+/* GitHub Alerts */
+.planning-content .github-alert {
+    padding: 12px 16px;
+    border-left: 4px solid var(--accent);
+    background: rgba(139, 92, 246, 0.1);
+    margin-bottom: 1em;
+    border-radius: 0 8px 8px 0;
+}
+
+.planning-content .github-alert-title {
+    font-weight: 600;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.planning-content .github-alert.important { border-left-color: #8b5cf6; background: rgba(139, 92, 246, 0.1); color: #c4b5fd; }
+.planning-content .github-alert.warning { border-left-color: #f59e0b; background: rgba(245, 158, 11, 0.1); color: #fcd34d; }
+.planning-content .github-alert.note { border-left-color: #3b82f6; background: rgba(59, 130, 246, 0.1); color: #93c5fd; }

@@ -88,4 +88,23 @@ if (target) {
 }
 ```
 
+## 📝 Right Pane Mirroring (Planning Drawer)
+
+### 1. Overview
+The right pane (artifact viewer, implementation plans, walkthroughs, review views) on the desktop is dynamically scraped and rendered inside a collapsible "Planning Drawer" on the phone. This eliminates file-reading overhead and displays live changes.
+
+### 2. API Endpoints & Mechanics
+* **`GET /api/planning-files`**:
+  * Calls `getRightPaneSnapshot(cdp)` in the backend.
+  * Evaluates a CDP script that locates the active conversation view, looks for explicit panels (e.g. `[data-testid*="artifact"]`, `[data-testid*="right-panel"]`, `[data-testid*="review"]`), or uses bounding rect heuristics (width/height > 200px, located on the right half of the screen, not wrapping the entire screen or conversation container) to clone the panel.
+  * Strips hidden nodes (`display: none`) and returns the outer HTML.
+* **`POST /remote-click`**:
+  * Body: `{ selector, index, textContent }`
+  * Clicks elements (like artifact cards or file links in chat) remotely on the desktop to open the corresponding right pane views.
+
+### 3. Key Integration Details (Token-Saving Rules)
+* **React Render Delay**: When a user triggers a remote click on an artifact card or file link, there is a delay before the right pane renders on the desktop. The frontend client (`public/js/app.js`) **must wait 600ms to 800ms** before fetching `/api/planning-files`. Otherwise, a blank pane is fetched.
+* **Tailwind Height/Overflow Overrides**: Antigravity uses Tailwind classes like `h-full` and `overflow-y-auto` which collapse to `0px` in absolute-positioned injected layers. They must be overridden in the CSS overrides layer by setting `height: auto !important` and `overflow: visible !important`.
+* **Authenticated Requests**: All network calls from the phone client (like `/api/planning-files`) must use `fetchWithAuth` to ensure session cookies and proxy/ngrok headers are correctly transmitted, preventing 401/403 HTML page responses from breaking JSON parsers.
+
 > 🎨 **Note**: For all UI design decisions, CSS architecture, and details on how agent mode elements are styled (like the gradient prompt pills), see [UI_DESIGN_SYSTEM.md](UI_DESIGN_SYSTEM.md).

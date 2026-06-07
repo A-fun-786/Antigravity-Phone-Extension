@@ -57,6 +57,9 @@ let currentMode = 'Fast';
 let chatIsOpen = true; // Track if a chat is currently open
 
 
+// --- State Variables ---
+let currentDarkModeOverrides = '';
+
 // --- Auth Utilities ---
 async function fetchWithAuth(url, options = {}) {
     // Add ngrok skip warning header to all requests
@@ -93,6 +96,11 @@ async function fetchAppState() {
         // Model Sync - Desktop is source of truth
         if (data.model && data.model !== 'Unknown') {
             modelText.textContent = data.model;
+        }
+
+        // Model List Sync - Update options dynamically
+        if (data.models && Array.isArray(data.models) && data.models.length > 0) {
+            MODELS = data.models;
         }
 
         console.log('[SYNC] State refreshed from Desktop:', data);
@@ -149,10 +157,12 @@ function dismissSslBanner() {
 // Check SSL on load
 checkSslStatus();
 // --- Models ---
-const MODELS = [
+let MODELS = [
+    "Gemini 3.5 Flash (High)",
+    "Gemini 3.5 Flash (Medium)",
+    "Gemini 3.5 Flash (Low)",
     "Gemini 3.1 Pro (High)",
-    "Gemini 3.1 Pro (Low)",
-    "Gemini 3 Flash",
+    "Gemini 3.1 Pro (low)",
     "Claude Sonnet 4.6 (Thinking)",
     "Claude Opus 4.6 (Thinking)",
     "GPT-OSS 120B (Medium)"
@@ -283,7 +293,11 @@ async function loadSnapshot() {
             '}\n' +
             '/* Flatten nested scroll/height containers from Tailwind */\n' +
             '[data-testid="conversation-view"] > div,\n' +
-            '[data-testid="conversation-view"] > div > div {\n' +
+            '[data-testid="conversation-view"] > div > div,\n' +
+            '#planningContent .h-full,\n' +
+            '#planningContent .flex-1,\n' +
+            '#planningContent .overflow-y-auto,\n' +
+            '#planningContent .min-h-0 {\n' +
             '    height: auto !important;\n' +
             '    min-height: 0 !important;\n' +
             '    overflow: visible !important;\n' +
@@ -557,6 +571,8 @@ async function loadSnapshot() {
             '    line-height: 1.6 !important;\n' +
             '}';
         styleTag.textContent = darkModeOverrides;
+        currentDarkModeOverrides = darkModeOverrides; // Save for right pane rendering
+
         chatContent.innerHTML = data.html;
 
         // Populate Sidebar Drawer if data exists
@@ -571,12 +587,41 @@ async function loadSnapshot() {
                     
                     const projectHeader = document.createElement('div');
                     projectHeader.className = 'drawer-project-header';
+                    projectHeader.style.display = 'flex';
+                    projectHeader.style.justifyContent = 'space-between';
+                    projectHeader.style.alignItems = 'center';
                     projectHeader.innerHTML = `
-                        <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
-                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                        </svg>
-                        <span>${project.name}</span>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+                                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                            </svg>
+                            <span>${project.name}</span>
+                        </div>
+                        <button class="project-new-chat-btn" aria-label="New Chat" style="background:transparent; border:none; color:var(--accent); cursor:pointer; padding:4px; display:flex; align-items:center; justify-content:center; border-radius:50%; transition: background 0.2s;">
+                            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                        </button>
                     `;
+                    
+                    const newProjectChatBtn = projectHeader.querySelector('.project-new-chat-btn');
+                    newProjectChatBtn.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        toggleDrawer(false);
+                        try {
+                            await fetchWithAuth('/new-project-chat', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ projectName: project.name })
+                            });
+                            setTimeout(loadSnapshot, 500);
+                            setTimeout(loadSnapshot, 1000);
+                        } catch (err) {
+                            console.error('Failed to create new project chat:', err);
+                        }
+                    });
+                    
                     projectSection.appendChild(projectHeader);
                     
                     const projectChats = document.createElement('div');
@@ -1374,7 +1419,21 @@ modeBtn.addEventListener('click', () => {
     });
 });
 
-modelBtn.addEventListener('click', () => {
+modelBtn.addEventListener('click', async () => {
+    const prevText = modelText.textContent;
+    modelText.textContent = 'Loading...';
+    try {
+        const res = await fetchWithAuth('/available-models');
+        const data = await res.json();
+        if (data.models && Array.isArray(data.models) && data.models.length > 0) {
+            MODELS = data.models;
+        }
+    } catch (e) {
+        console.error('Failed to fetch models:', e);
+    } finally {
+        modelText.textContent = prevText;
+    }
+
     openModal('Select Model', MODELS, async (model) => {
         const prev = modelText.textContent;
         modelText.textContent = 'Setting...';
@@ -1623,6 +1682,29 @@ if (drawerNewChatBtn) {
 chatContent.addEventListener('click', async (e) => {
     const target = e.target;
     
+    // Intercept planning/artifact markdown links
+    const link = target.closest('a');
+    if (link) {
+        const href = link.getAttribute('href') || '';
+        if (href.includes('/brain/') && href.includes('.md')) {
+            e.preventDefault();
+            const textContent = link.textContent.trim();
+            
+            // Trigger remote click so desktop opens the right pane
+            fetchWithAuth('/remote-click', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ selector: 'a', textContent })
+            });
+
+            // Wait briefly for the desktop to render the right pane, then open phone drawer
+            setTimeout(() => {
+                openPlanningDrawer();
+            }, 800);
+            return;
+        }
+    }
+    
     // Allow Button
     const allowBtn = target.closest('.agent-allow-btn');
     if (allowBtn) {
@@ -1644,13 +1726,29 @@ chatContent.addEventListener('click', async (e) => {
     if (reviewBtn) {
         reviewBtn.style.opacity = '0.5';
         await executeAgentAction('review');
+        // Now that the action and snapshot reload are complete, mirror the right pane
+        openPlanningDrawer();
         return;
     }
     
     // Artifact Card
     const artifactCard = target.closest('.artifact-card');
     if (artifactCard) {
-        openArtifactView(artifactCard);
+        artifactCard.style.opacity = '0.5';
+        // Trigger remote click on desktop to open the pane
+        const textContent = artifactCard.innerText.split('\n')[0].trim();
+        await fetchWithAuth('/remote-click', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                selector: 'a[href*=".md"], [class*="implementation"], [class*="plan"], [class*="walkthrough"], [class*="review"], .artifact-card', 
+                textContent 
+            })
+        });
+        
+        // Wait for desktop React DOM to render the new pane, then mirror it
+        await new Promise(r => setTimeout(r, 600));
+        openPlanningDrawer();
         return;
     }
 });
@@ -1662,7 +1760,10 @@ async function executeAgentAction(action) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action })
         });
-        setTimeout(loadSnapshot, 500);
+        
+        // Wait briefly for AG to process the action, then reload snapshot
+        await new Promise(r => setTimeout(r, 600));
+        await loadSnapshot();
     } catch (e) {
         console.error('Agent action failed', e);
     }
@@ -1687,4 +1788,150 @@ if (closeArtifactBtn) {
     closeArtifactBtn.addEventListener('click', () => {
         artifactViewLayer.classList.remove('active');
     });
+}
+
+// ==========================================
+// PLANNING PANE LOGIC
+// ==========================================
+const planningBtn = document.getElementById('planningBtn');
+const planningLayer = document.getElementById('planningLayer');
+const closePlanningBtn = document.getElementById('closePlanningBtn');
+const planningContent = document.getElementById('planningContent');
+const fontIncBtn = document.getElementById('fontIncBtn');
+const fontDecBtn = document.getElementById('fontDecBtn');
+
+let planningHTML = '';
+let currentFontSize = 15;
+
+async function openPlanningDrawer() {
+    planningLayer.classList.add('show');
+    planningContent.innerHTML = '<div class="loading-state"><div class="loading-spinner"></div><p>Loading desktop right pane...</p></div>';
+    
+    try {
+        const res = await fetchWithAuth('/api/planning-files');
+        const data = await res.json();
+        
+        if (data.hasFiles && data.html) {
+            planningHTML = data.html;
+            planningContent.innerHTML = '<style>' + currentDarkModeOverrides + '</style>' + planningHTML;
+        } else {
+            planningHTML = '<div class="loading-state"><p>Right pane is currently closed on desktop.</p></div>';
+            planningContent.innerHTML = planningHTML;
+        }
+    } catch (e) {
+        planningContent.innerHTML = '<div class="loading-state"><p>Error connecting to desktop.</p></div>';
+    }
+}
+
+if (planningBtn) {
+    planningBtn.addEventListener('click', () => openPlanningDrawer());
+}
+
+if (closePlanningBtn) {
+    closePlanningBtn.addEventListener('click', () => {
+        planningLayer.classList.remove('show');
+    });
+}
+
+function renderPlanningTabs() {
+    // Deprecated: We now mirror the desktop UI directly
+}
+
+if (fontIncBtn && fontDecBtn) {
+    fontIncBtn.addEventListener('click', () => {
+        if (currentFontSize < 24) currentFontSize += 2;
+        planningContent.style.fontSize = currentFontSize + 'px';
+    });
+    fontDecBtn.addEventListener('click', () => {
+        if (currentFontSize > 11) currentFontSize -= 2;
+        planningContent.style.fontSize = currentFontSize + 'px';
+    });
+}
+
+function renderPlanningContent() {
+    // Deprecated: Content is injected directly in openPlanningDrawer
+}
+
+function parseMarkdown(md) {
+    if (!md) return '<p>No content available.</p>';
+    
+    let html = md;
+    
+    // Protect code blocks first
+    let codeBlocks = [];
+    html = html.replace(/```(?:[a-z]*)\n([\s\S]*?)```/gim, (match, code) => {
+        codeBlocks.push(`<pre><code>${code.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>`);
+        return `__CODE_BLOCK_${codeBlocks.length - 1}__`;
+    });
+
+    // Protect inline code
+    let inlineCodes = [];
+    html = html.replace(/`([^`]+)`/gim, (match, code) => {
+        inlineCodes.push(`<code>${code.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code>`);
+        return `__INLINE_CODE_${inlineCodes.length - 1}__`;
+    });
+
+    // Links
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/gim, '<a href="$2" target="_blank" style="color:var(--accent); text-decoration:underline">$1</a>');
+
+    // Headers
+    html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+    html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+    html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+
+    // GitHub alerts
+    html = html.replace(/> \[!([A-Z]+)\]\n((?:> .*\n?)+)/gim, (match, type, content) => {
+        const cleanContent = content.replace(/^> /gm, '').trim();
+        const lowerType = type.toLowerCase();
+        return `<div class="github-alert ${lowerType}"><div class="github-alert-title">${type}</div><p>${cleanContent}</p></div>`;
+    });
+
+    // Checkbox lists (tasks)
+    html = html.replace(/^- \[ \]/gim, '<li class="task-list-item"><input type="checkbox" disabled>');
+    html = html.replace(/^- \[x\]/gi, '<li class="task-list-item"><input type="checkbox" checked disabled>');
+    html = html.replace(/^- \[\/\]/gim, '<li class="task-list-item"><input type="checkbox" disabled style="opacity:0.5; accent-color: yellow"> <em>(In Progress)</em>');
+    
+    // Normal lists
+    html = html.replace(/^- (?!\[)(.*$)/gim, '<li>$1</li>');
+
+    // Bold
+    html = html.replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>');
+
+    // Wrap in paragraphs
+    let lines = html.split('\n');
+    let htmlLines = [];
+    let inList = false;
+    for (let i = 0; i < lines.length; i++) {
+        let line = lines[i].trim();
+        if (line === '') {
+            if (inList) { htmlLines.push('</ul>'); inList = false; }
+            continue;
+        }
+        
+        if (line.startsWith('<li')) {
+            if (!inList) { htmlLines.push('<ul>'); inList = true; }
+            htmlLines.push(line);
+        } else if (line.startsWith('<h') || line.startsWith('<div') || line.startsWith('__CODE_BLOCK')) {
+            if (inList) { htmlLines.push('</ul>'); inList = false; }
+            htmlLines.push(line);
+        } else {
+            if (inList) { htmlLines.push('</ul>'); inList = false; }
+            htmlLines.push('<p>' + line + '</p>');
+        }
+    }
+    if (inList) htmlLines.push('</ul>');
+    
+    html = htmlLines.join('\n');
+
+    // Restore inline codes
+    for (let i = 0; i < inlineCodes.length; i++) {
+        html = html.replace(`__INLINE_CODE_${i}__`, inlineCodes[i]);
+    }
+
+    // Restore code blocks
+    for (let i = 0; i < codeBlocks.length; i++) {
+        html = html.replace(`__CODE_BLOCK_${i}__`, codeBlocks[i]);
+    }
+
+    return html;
 }

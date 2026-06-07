@@ -33,6 +33,15 @@
         </div>
 
         <div class="header-controls">
+            <button class="planning-btn" id="planningBtn" aria-label="Planning & Tasks" title="Planning & Tasks">
+                <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                    <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+            </button>
             <button class="new-chat-btn" id="newChatBtn" aria-label="New Chat" title="New Chat (Ctrl+Shift+L)">
                 <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -225,6 +234,29 @@
             <div class="loading-state">
                 <div class="loading-spinner"></div>
                 <p>Loading artifact...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Planning Layer (Full Screen) -->
+    <div class="history-layer planning-layer" id="planningLayer" style="z-index: 5000;">
+        <div class="history-header">
+            <button class="icon-btn" id="closePlanningBtn" aria-label="Back">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            </button>
+            <h2 id="planningTitle">Planning</h2>
+            <div class="planning-font-controls">
+                <button id="fontDecBtn" class="font-control-btn" title="Decrease Text Size">A-</button>
+                <button id="fontIncBtn" class="font-control-btn" title="Increase Text Size">A+</button>
+            </div>
+        </div>
+        <div class="planning-tabs" id="planningTabs" style="display: none;"></div>
+        <div class="history-content planning-content" id="planningContent">
+            <div class="loading-state">
+                <div class="loading-spinner"></div>
+                <p>Loading planning files...</p>
             </div>
         </div>
     </div>

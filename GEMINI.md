@@ -58,6 +58,7 @@ antigravity_phone_chat/
 - **UI Design System & Snapshot Rendering**: All rules for capturing snapshots, overriding Tailwind traps (`h-full`), and injecting the premium dark mode CSS design system are centralized. See `Docs/UI_DESIGN_SYSTEM.md` for UI/CSS work.
 - **Debug endpoint**: `GET /debug-snapshot` renders raw snapshot HTML in-browser for diagnosing capture vs. display issues.
 - **Model Quota / CDP Navigation**: `capture_models.js` automates Settings → Models navigation to write real-time stats to `parsed_model_quotas.json`. Integrates into `server.js` or phone connect quota UI. Refer to `Docs/CDP_EXPLORATION_GUIDE.md` first.
+- **Model Selector (DYNAMIC SYNC)**: When the user clicks the model selection button on the phone, the client fetches the active list of options in real-time from `GET /available-models`. The server runs `syncModelsFromCDP()` to briefly click open the dropdown on the desktop, parse the visible options, close it, and return them. Selected changes are pushed via `POST /set-model`, which opens the dropdown again, selects the matched model, and closes it.
 - **Auth**: Signed httpOnly cookies. LAN auto-trusts. External requires password from `.env`.
 - **Tunnel**: `launcher.py` manages ngrok/cloudflare/pinggy tunnels as child processes.
 - **Security**: Strict CSP (no inline JS), XSS-safe HTML escaping, input sanitization via JSON.stringify.
@@ -108,10 +109,10 @@ You do NOT need to memorize skill names. I route automatically based on your des
 
 When a prompt matches one of these features, read the corresponding documentation file before writing code:
 
-### 1. Interactive Agent Mode
-* **Role/Summary**: Real-time mirroring of the active Agent conversation, sidebar chat list segregated by project with custom styles/icons, direct prompt action buttons (Allow/Deny/Review), and fullscreen artifact viewer (Implementation plans, Walkthroughs, Diffs).
-* **Key Files**: `server.js` (endpoints `/switch-chat`, `/agent-action`, `captureSidebar`), `public/js/app.js` (drawer population, full-screen artifact viewer event handlers), `public/css/style.css` (drawer transitions and layout).
-* **Routing Rule**: If the prompt involves sidebar chats, Allow/Deny buttons, or artifact rendering on the phone connect screen, read [INTERACTIVE_AGENT_MODE.md](file:///Users/mdaffanahmed/VS%20Code/Git%20Projects/antigravity_phone_chat/Docs/INTERACTIVE_AGENT_MODE.md) first.
+### 1. Interactive Agent Mode & Right Pane Mirroring
+* **Role/Summary**: Real-time mirroring of active agent conversations, sidebar chats segregated by project, action prompts (Allow/Deny), and desktop right-pane mirroring (Planning Drawer for Implementation Plans, Walkthroughs, Reviews) using remote click triggers, delayed React DOM fetching (600ms-800ms), and custom CSS overrides.
+* **Key Files**: `server.js` (endpoints `/switch-chat`, `/agent-action`, `/remote-click`, `/api/planning-files`, functions `captureSidebar`, `getRightPaneSnapshot`), `public/js/app.js` (drawer initialization, remote clicks, render delay, and style overrides), `public/css/style.css` (drawer transitions and styling).
+* **Routing Rule**: If the prompt involves sidebar chats, Allow/Deny/Review buttons, artifact rendering, or right-pane mirroring, read [INTERACTIVE_AGENT_MODE.md](file:///Users/mdaffanahmed/VS%20Code/Git%20Projects/antigravity_phone_chat/Docs/INTERACTIVE_AGENT_MODE.md) first.
 
 ### 2. Model Quota & Usage Monitoring
 * **Role/Summary**: Headless settings traversal using CDP, parsing active AI model quotas, and writing usage data.
