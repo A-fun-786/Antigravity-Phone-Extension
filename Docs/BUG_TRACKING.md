@@ -5,6 +5,8 @@ This document serves as the central hub for tracking known issues, squashed bugs
 ## 🐛 Known Bug Patterns
 *(These are critical patterns discovered during debugging that should NEVER be repeated. They are also mirrored in `GEMINI.md` for quick context assembly).*
 
+> 🎨 **Note on UI Bugs**: UI bugs are logged here alongside other bugs. For detailed CSS rendering history, layout traps, and the reasoning behind UI updates triggered by these bugs, see the `UI Update & Bug Tracking Log` in [UI_DESIGN_SYSTEM.md](UI_DESIGN_SYSTEM.md).
+
 - **Undefined Index in CDP Scripts**: Never pass an `undefined` index to CDP `Runtime.evaluate` injection strings. It resolves as `elements[undefined]`, breaking the entire execution block. Always default to `0` or use safe stringification.
 - **Stale DOM Selectors**: Antigravity's UI has moved from `#conversation`/`#chat`/`#cascade` to `[data-testid="conversation-view"]`. Never scope `querySelectorAll` strictly to the old IDs without including the new `data-testid`.
 - **Aggressive Input Removal**: Do not use `[class*="input"]` to strip elements for the snapshot; it strips essential UI elements like action buttons.

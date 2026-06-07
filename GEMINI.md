@@ -34,13 +34,14 @@ antigravity_phone_chat/
 ├── install_context_menu.sh/.bat        # OS context menu installer
 ├── .env / .env.example    # Config (passwords, tokens, tunnel provider)
 ├── package.json           # Node deps: express, ws
-└── Docs:
+└── Docs/
+    ├── UI_DESIGN_SYSTEM.md    # [NEW] All UI philosophy, CSS architecture, rendering, and UI bugs
     ├── CODE_DOCUMENTATION.md  # Architecture, API endpoints, data flow
-    ├── CDP_EXPLORATION_GUIDE.md # CDP DOM exploration & model quotas [NEW]
-    ├── INTERACTIVE_AGENT_MODE.md # Interactive Agent Mode, Sidebar Chats, Prompt Actions [NEW]
+    ├── CDP_EXPLORATION_GUIDE.md # CDP DOM exploration & model quotas
+    ├── INTERACTIVE_AGENT_MODE.md # Interactive Agent Mode, Sidebar Chats, Prompt Actions
     ├── BUG_TRACKING.md        # Central hub for known issues, squashed bugs, and testing
+    ├── DESIGN_PHILOSOPHY.md   # Product philosophy (non-UI decisions)
     ├── SECURITY.md            # HTTPS, CSP, auth model
-    ├── DESIGN_PHILOSOPHY.md   # Why decisions were made
     ├── CONTRIBUTING.md        # Dev guidelines
     ├── RELEASE_NOTES.md       # Changelog
     └── SOCIAL_MEDIA.md        # Marketing copy
@@ -54,8 +55,7 @@ antigravity_phone_chat/
 - **clickElement()**: Searches `document` globally (not scoped to chat container). Defaults `index` to `0`. Filters visible elements only (`offsetParent !== null`). Used by `/switch-chat`, `/agent-action`, `/remote-click`.
 - **injectMessage()**: Finds `[contenteditable="true"]` with fallback from scoped → document-wide. Injects text via `execCommand("insertText")`, clears/attaches images to the file input, and clicks the send button (or falls back to Enter key event).
 - **captureSnapshot()**: Uses `querySelectorAll('[data-testid="conversation-view"]')` + `offsetParent !== null` to find the **visible** container (avoids hidden cached DOM nodes). Clones it, tags buttons with `.agent-allow-btn`/`.agent-deny-btn`/`.agent-review-btn` classes, strips input areas AND Lexical placeholders (`[class*="placeholder"]`, `[data-placeholder]`) surgically.
-- **Snapshot Rendering on Phone (CRITICAL)**: The snapshot HTML contains Antigravity's Tailwind classes (`h-full`, `overflow-y-auto`, `min-h-0`) on deeply nested divs. These create invisible zero-height scroll containers when injected into our layout because `h-full` resolves to 0px without a fixed-height parent. The dark mode overrides in `app.js` (`loadSnapshot()`) MUST flatten these by forcing `height: auto !important; overflow: visible !important; max-height: none !important;` on `[data-testid="conversation-view"]` and its first two levels of children. Our own `#chatContainer` handles all scrolling.
-- **Premium Snapshot CSS Design System**: The `darkModeOverrides` string in `app.js` is organized into 14 numbered sections. Key design decisions: (1) Tailwind CSS variables (`--background`, `--card`, `--card-border`) are overridden for dark theme, (2) User messages (`[aria-label="User message"]`) get indigo-accent floating cards with left border — `sticky` is removed to prevent scroll overlap, the `::after` gradient pseudo-element is killed, (3) AI responses flow cleanly without card wrapper for visual distinction, (4) `.bg-card` gets solid dark surface, `.bg-card-border` gets gradient shimmer, (5) Agent action buttons are gradient pills (green Allow, red Deny, blue Review), (6) Inline code uses indigo-tinted glass. When editing snapshot CSS, maintain the numbered section structure and always test that `[aria-label="User message"]` stays `position: relative` (never `sticky`).
+- **UI Design System & Snapshot Rendering**: All rules for capturing snapshots, overriding Tailwind traps (`h-full`), and injecting the premium dark mode CSS design system are centralized. See `Docs/UI_DESIGN_SYSTEM.md` for UI/CSS work.
 - **Debug endpoint**: `GET /debug-snapshot` renders raw snapshot HTML in-browser for diagnosing capture vs. display issues.
 - **Model Quota / CDP Navigation**: `capture_models.js` automates Settings → Models navigation to write real-time stats to `parsed_model_quotas.json`. Integrates into `server.js` or phone connect quota UI. Refer to `Docs/CDP_EXPLORATION_GUIDE.md` first.
 - **Auth**: Signed httpOnly cookies. LAN auto-trusts. External requires password from `.env`.
@@ -127,6 +127,11 @@ When a prompt matches one of these features, read the corresponding documentatio
 * **Role/Summary**: Real-time mobile-to-desktop photo attachment injection via drag-and-drop and temp-file link fallback.
 * **Key Files**: `server.js` (endpoint `/send` and `injectMessage`), `public/js/app.js` (`sendMessage` and `compressImage`), `public/temp_uploads/` (static file repository).
 * **Routing Rule**: If the prompt involves uploading files, attaching images, base64 payload sizes, or pasting images, read the Attachment & Send Button Failure section in [BUG_TRACKING.md](file:///Users/mdaffanahmed/VS%20Code/Git%20Projects/antigravity_phone_chat/Docs/BUG_TRACKING.md) and inspect the `injectMessage` function implementation in `server.js`.
+
+### 5. UI Design System & Snapshot CSS
+* **Role/Summary**: Complete UI design language, CSS architecture (native + snapshot), rendering pipeline, and UI-specific bug patterns.
+* **Key Files**: `public/css/style.css`, `public/js/app.js` (darkModeOverrides), `server.js` (captureSnapshot, /debug-snapshot).
+* **Routing Rule**: If the prompt involves CSS, dark mode, snapshot rendering, layout bugs, or visual design, read [UI_DESIGN_SYSTEM.md](file:///Users/mdaffanahmed/VS%20Code/Git%20Projects/antigravity_phone_chat/Docs/UI_DESIGN_SYSTEM.md) first.
 
 ---
 

@@ -77,12 +77,15 @@ if (pill) pill.click();
 ```
 
 ### Performing Actions
-To trigger "Allow" or "Deny", the server executes a CDP snippet inside the editor's execution context:
+To trigger "Allow" or "Deny", the server executes a CDP snippet inside the editor's execution context. We use the robust `clickElement` utility which searches globally across the document (including shadow DOMs if needed) and filters for visible elements (`offsetParent !== null`):
 ```javascript
-const activeButtons = Array.from(document.querySelectorAll('#conversation button, #cascade button'));
-const target = activeButtons.find(b => b.innerText.trim().toLowerCase() === action.toLowerCase());
+const actionStr = action.trim().toLowerCase();
+const activeButtons = Array.from(document.querySelectorAll('button')).filter(b => b.offsetParent !== null);
+const target = activeButtons.find(b => b.innerText.trim().toLowerCase() === actionStr);
 if (target) {
     target.click();
     return { ok: true };
 }
 ```
+
+> 🎨 **Note**: For all UI design decisions, CSS architecture, and details on how agent mode elements are styled (like the gradient prompt pills), see [UI_DESIGN_SYSTEM.md](UI_DESIGN_SYSTEM.md).

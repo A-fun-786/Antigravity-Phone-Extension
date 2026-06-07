@@ -16,22 +16,11 @@ Furthermore, to solve the "Nested DOM Trap" (where clicking a parent div fails b
 ### 2. Zero-Impact Mirroring
 The snapshot system clones the DOM before capturing. This ensures that the mirroring process doesn't interfere with the developer's cursor, scroll position, or focus on the Desktop machine.
 
-### 3. Visual Parity (The Dark Mode Bridge)
-Antigravity themes have thousands of CSS variables. Instead of trying to mirror every variable perfectly, we use **Aggressive CSS Inheritance**. The frontend captures the raw HTML and wraps it in a modern, slate-dark UI that feels premium and natively mobile, regardless of the Desktop's theme. Recent updates layer this with **Glassmorphism UI components** and fine-tuned dark mode styling, ensuring that settings bars, model states, and quick actions remain frictionlessly readable and highly aesthetically pleasing against dynamic coding backgrounds.
-
-### 4. Security-First Local Access & "Zero-Inline" Hardening
-- **HTTPS by Default**: When SSL certificates are generated, the server automatically uses HTTPS.
-- **Hybrid SSL Generation**: Tries OpenSSL first (better IP SAN support), falls back to Node.js crypto (zero dependencies).
-- **Auto IP Detection**: Certificates include your local network IP addresses for better browser compatibility.
-- **Strict Separation of Concerns**: We strictly enforce a **Zero-Inline-JS** policy. By refactoring 100% of event logic into `app.js` and removing `onclick` handlers from the DOM, we enable a robust Content Security Policy (CSP) that blocks `'unsafe-inline'` script execution.
-- **LAN Constraint & Global Freedom**: By default, it stays on LAN for privacy. However, the `_web` mode introduces secure tunneling for global access, prioritizing **Freedom of Movement** without sacrificing security.
-
-### 5. Mobile-First Navigation (History Management)
-The mobile UI now features a **Premium Full-Screen History Layer**. This design choice reflects the reality that mobile screens are too small for sidebar navigation. By utilizing a sleek modal-layered approach—complete with elevated cards, gradient icons, and responsive micro-animations—we provide high-density information (recent chats) as a purely native mobile experience without cluttering the primary viewing area. We also strictly enforce bi-directional synchronization by executing a programmatic Escape keypress on the desktop when the history layer is closed on the phone, preventing stale UI popups when the developer returns to their screen.
+> 🎨 **Note**: For all UI design decisions, CSS architecture (Visual Parity, Dark Mode, Mobile-First Navigation), and snapshot rendering details, see [UI_DESIGN_SYSTEM.md](UI_DESIGN_SYSTEM.md).
 
 > 📚 For browser warning bypass instructions and security recommendations, see [SECURITY.md](SECURITY.md).
 
-### 5. Resilient Error Handling
+### 4. Resilient Error Handling
 - **Optimistic Updates**: Message sending clears the input immediately and refreshes to verify.
 - **Layered Interaction**: Using full-screen overlays for history management ensures that complex navigation doesn't interfere with the real-time session mirroring.
 - **Silent Failure resilience**: Memory leak prevention and centralized CDP handling ensure the server stays up even if the desktop session is volatile.
