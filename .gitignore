@@ -47,3 +47,13 @@ include/
 lib/
 lib64/
 share/
+
+# Gemini / Antigravity Phone Connect Temp & Local Files
+.gemini/
+public/temp_uploads/
+parsed_model_quotas.json
+inspect_dom.js
+pane_test.json
+test_fetch.js
+test_pane.js
+public/test_collapse.html
