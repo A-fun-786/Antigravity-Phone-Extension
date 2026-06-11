@@ -10,7 +10,7 @@ This guide documents the Chrome DevTools Protocol (CDP) utilities added to the w
 * **Role**: Orchestrates the headless navigation of the Antigravity Settings modal to parse active AI model quotas.
 * **When to Touch / Use**:
   * If the user asks to "refresh model quota stats", "show active limits", or if you need to fetch live rate limits.
-  * To integrate active model statistics into the phone backend (`server.js` or an API endpoint `/api/usage`).
+  * To integrate active model statistics into the phone backend (`src/server/routes/modelRoutes.js` or an API endpoint `/api/usage`).
 * **Detailed Working**:
   * **macOS Auto-Port Discovery**: Reads the active CDP debug port dynamically from the macOS environment:
     `/Users/mdaffanahmed/Library/Application Support/Antigravity/DevToolsActivePort`
@@ -58,13 +58,13 @@ When `capture_models.js` is run, it outputs a clean payload containing the times
 
 ---
 
-## 🔄 How to Integrate Quota Stats into `server.js`
+## 🔄 How to Integrate Quota Stats into the Backend
 
 To make this data available to the mobile phone connect interface:
-1. Import `exec` from `child_process` in `server.js`.
+1. Import `exec` from `child_process` in `src/server/routes/modelRoutes.js`.
 2. Expose a new Express endpoint:
    ```javascript
-   app.get('/api/quota', (req, res) => {
+   router.get('/api/quota', (req, res) => {
        exec('node capture_models.js', (err) => {
            if (err) return res.status(500).json({ error: 'Failed to capture quotas' });
            const data = JSON.parse(fs.readFileSync('./parsed_model_quotas.json', 'utf8'));

@@ -20,7 +20,7 @@
 
 ```
 antigravity_phone_chat/
-├── server.js              # THE core file. Express + WebSocket + CDP. ~94KB. All backend logic.
+├── server.js              # Thin root entrypoint wrapper (Node.js/ESM)
 ├── capture_models.js      # Model quota extraction & CDP settings helper [NEW]
 ├── public/
 │   ├── index.html         # Mobile frontend HTML
@@ -34,30 +34,65 @@ antigravity_phone_chat/
 ├── install_context_menu.sh/.bat        # OS context menu installer
 ├── .env / .env.example    # Config (passwords, tokens, tunnel provider)
 ├── package.json           # Node deps: express, ws
-└── Docs/
-    ├── UI_DESIGN_SYSTEM.md    # [NEW] All UI philosophy, CSS architecture, rendering, and UI bugs
-    ├── CODE_DOCUMENTATION.md  # Architecture, API endpoints, data flow
-    ├── CDP_EXPLORATION_GUIDE.md # CDP DOM exploration & model quotas
-    ├── INTERACTIVE_AGENT_MODE.md # Interactive Agent Mode, Sidebar Chats, Prompt Actions
-    ├── BUG_TRACKING.md        # Central hub for known issues, squashed bugs, and testing
-    ├── DESIGN_PHILOSOPHY.md   # Product philosophy (non-UI decisions)
-    ├── SECURITY.md            # HTTPS, CSP, auth model
-    ├── CONTRIBUTING.md        # Dev guidelines
-    ├── RELEASE_NOTES.md       # Changelog
-    └── SOCIAL_MEDIA.md        # Marketing copy
+├── Docs/
+│   ├── UI_DESIGN_SYSTEM.md    # [NEW] All UI philosophy, CSS architecture, rendering, and UI bugs
+│   ├── CODE_DOCUMENTATION.md  # Architecture, API endpoints, data flow
+│   ├── CDP_EXPLORATION_GUIDE.md # CDP DOM exploration & model quotas
+│   ├── INTERACTIVE_AGENT_MODE.md # Interactive Agent Mode, Sidebar Chats, Prompt Actions
+│   ├── BUG_TRACKING.md        # Central hub for known issues, squashed bugs, and testing
+│   ├── DESIGN_PHILOSOPHY.md   # Product philosophy (non-UI decisions)
+│   ├── SECURITY.md            # HTTPS, CSP, auth model
+│   ├── CONTRIBUTING.md        # Dev guidelines
+│   ├── RELEASE_NOTES.md       # Changelog
+│   └── SOCIAL_MEDIA.md        # Marketing copy
+└── src/
+    └── server/
+        ├── index.js       # Main wiring entrypoint
+        ├── config.js      # Static configuration values
+        ├── state.js       # Runtime state factory
+        ├── app.js         # Express app initialization
+        ├── httpServer.js  # HTTP/HTTPS server creation
+        ├── polling.js     # Background snapshot polling loop
+        ├── websocket.js   # WebSocket server auth & lifecycle
+        ├── auth.js        # Auth cookies and middlewares
+        ├── routes/        # Router files mapped to endpoints
+        │   ├── authRoutes.js
+        │   ├── snapshotRoutes.js
+        │   ├── healthRoutes.js
+        │   ├── debugRoutes.js
+        │   ├── messageRoutes.js
+        │   ├── modelRoutes.js
+        │   ├── remoteRoutes.js
+        │   ├── chatRoutes.js
+        │   └── planningRoutes.js
+        ├── cdp/           # Chrome DevTools Protocol integrations
+        │   ├── client.js
+        │   ├── snapshotCapture.js
+        │   ├── sidebarCapture.js
+        │   ├── messageInjection.js
+        │   ├── remoteControl.js
+        │   ├── modelControl.js
+        │   ├── chatControl.js
+        │   ├── appState.js
+        │   └── rightPane.js
+        └── utils/         # Helper functions
+            ├── hash.js
+            ├── network.js
+            ├── localRequest.js
+            └── paths.js
 ```
 
 ### Key Architecture Facts (so you never need to re-discover them)
-- **Backend**: Single `server.js` handles everything — Express HTTP/S server, WebSocket for real-time updates, CDP bridge to Antigravity.
+- **Backend**: Thin `server.js` entrypoint delegating to `src/server/index.js` which initializes modular routes (`src/server/routes/`), CDP control features (`src/server/cdp/`), authentication (`src/server/auth.js`), WebSockets (`src/server/websocket.js`), and polling (`src/server/polling.js`).
 - **Frontend**: Vanilla HTML/CSS/JS in `public/`. No framework. No build step.
-- **CDP Flow**: `server.js` polls Antigravity every 1s via CDP → hashes DOM → broadcasts delta to phone via WebSocket.
+- **CDP Flow**: `src/server/polling.js` polls Antigravity every 1s via CDP → hashes DOM → broadcasts delta to phone via WebSocket.
 - **CDP DOM Selectors (CRITICAL)**: Antigravity's main chat container is `[data-testid="conversation-view"]` — NOT `#conversation`/`#chat`/`#cascade` (those are legacy). Sidebar pills use `[data-testid^="convo-pill-"]` inside `.bg-sidebar`. The editor is `[contenteditable="true"]`. Submit button is `[data-testid="send-button"]`, `[data-tooltip-id="input-send-button-send-tooltip"]`, `[aria-label="Send message"]`, or legacy `svg.lucide-arrow-right` closest `button`.
-- **clickElement()**: Searches `document` globally (not scoped to chat container). Defaults `index` to `0`. Filters visible elements only (`offsetParent !== null`). Used by `/switch-chat`, `/agent-action`, `/remote-click`.
-- **injectMessage()**: Finds `[contenteditable="true"]` with fallback from scoped → document-wide. Injects text via `execCommand("insertText")`, clears/attaches images to the file input, and clicks the send button (or falls back to Enter key event).
-- **captureSnapshot()**: Uses `querySelectorAll('[data-testid="conversation-view"]')` + `offsetParent !== null` to find the **visible** container (avoids hidden cached DOM nodes). Clones it, tags buttons with `.agent-allow-btn`/`.agent-deny-btn`/`.agent-review-btn` classes, strips input areas AND Lexical placeholders (`[class*="placeholder"]`, `[data-placeholder]`) surgically.
+- **clickElement()**: Searches `document` globally (not scoped to chat container). Defaults `index` to `0`. Filters visible elements only (`offsetParent !== null`). Used by `/switch-chat`, `/agent-action`, `/remote-click`. Defined in `src/server/cdp/remoteControl.js`.
+- **injectMessage()**: Finds `[contenteditable="true"]` with fallback from scoped → document-wide. Injects text via `execCommand("insertText")`, clears/attaches images to the file input, and clicks the send button (or falls back to Enter key event). Defined in `src/server/cdp/messageInjection.js`.
+- **captureSnapshot()**: Uses `querySelectorAll('[data-testid="conversation-view"]')` + `offsetParent !== null` to find the **visible** container (avoids hidden cached DOM nodes). Clones it, tags buttons with `.agent-allow-btn`/`.agent-deny-btn`/`.agent-review-btn` classes, strips input areas AND Lexical placeholders (`[class*="placeholder"]`, `[data-placeholder]`) surgically. Defined in `src/server/cdp/snapshotCapture.js`.
 - **UI Design System & Snapshot Rendering**: All rules for capturing snapshots, overriding Tailwind traps (`h-full`), and injecting the premium dark mode CSS design system are centralized. See `Docs/UI_DESIGN_SYSTEM.md` for UI/CSS work.
 - **Debug endpoint**: `GET /debug-snapshot` renders raw snapshot HTML in-browser for diagnosing capture vs. display issues.
-- **Model Quota / CDP Navigation**: `capture_models.js` automates Settings → Models navigation to write real-time stats to `parsed_model_quotas.json`. Integrates into `server.js` or phone connect quota UI. Refer to `Docs/CDP_EXPLORATION_GUIDE.md` first.
+- **Model Quota / CDP Navigation**: `capture_models.js` automates Settings → Models navigation to write real-time stats to `parsed_model_quotas.json`. Integrates into modular routing or phone connect quota UI. Refer to `Docs/CDP_EXPLORATION_GUIDE.md` first.
 - **Model Selector (DYNAMIC SYNC)**: When the user clicks the model selection button on the phone, the client fetches the active list of options in real-time from `GET /available-models`. The server runs `syncModelsFromCDP()` to briefly click open the dropdown on the desktop, parse the visible options, close it, and return them. Selected changes are pushed via `POST /set-model`, which opens the dropdown again, selects the matched model, and closes it.
 - **Auth**: Signed httpOnly cookies. LAN auto-trusts. External requires password from `.env`.
 - **Tunnel**: `launcher.py` manages ngrok/cloudflare/pinggy tunnels as child processes.
@@ -111,7 +146,7 @@ When a prompt matches one of these features, read the corresponding documentatio
 
 ### 1. Interactive Agent Mode & Right Pane Mirroring
 * **Role/Summary**: Real-time mirroring of active agent conversations, sidebar chats segregated by project, action prompts (Allow/Deny), and desktop right-pane mirroring (Planning Drawer for Implementation Plans, Walkthroughs, Reviews) using remote click triggers, delayed React DOM fetching (600ms-800ms), and custom CSS overrides.
-* **Key Files**: `server.js` (endpoints `/switch-chat`, `/agent-action`, `/remote-click`, `/api/planning-files`, functions `captureSidebar`, `getRightPaneSnapshot`), `public/js/app.js` (drawer initialization, remote clicks, render delay, and style overrides), `public/css/style.css` (drawer transitions and styling).
+* **Key Files**: `src/server/routes/chatRoutes.js`, `src/server/routes/remoteRoutes.js`, `src/server/routes/planningRoutes.js`, `src/server/cdp/sidebarCapture.js`, `src/server/cdp/rightPane.js`, `public/js/app.js` (drawer initialization, remote clicks, render delay, and style overrides), `public/css/style.css` (drawer transitions and styling).
 * **Routing Rule**: If the prompt involves sidebar chats, Allow/Deny/Review buttons, artifact rendering, or right-pane mirroring, read [INTERACTIVE_AGENT_MODE.md](file:///Users/mdaffanahmed/VS%20Code/Git%20Projects/antigravity_phone_chat/Docs/INTERACTIVE_AGENT_MODE.md) first.
 
 ### 2. Model Quota & Usage Monitoring
@@ -126,12 +161,12 @@ When a prompt matches one of these features, read the corresponding documentatio
 
 ### 4. Image Attachments & File Handling
 * **Role/Summary**: Real-time mobile-to-desktop photo attachment injection via drag-and-drop and temp-file link fallback.
-* **Key Files**: `server.js` (endpoint `/send` and `injectMessage`), `public/js/app.js` (`sendMessage` and `compressImage`), `public/temp_uploads/` (static file repository).
-* **Routing Rule**: If the prompt involves uploading files, attaching images, base64 payload sizes, or pasting images, read the Attachment & Send Button Failure section in [BUG_TRACKING.md](file:///Users/mdaffanahmed/VS%20Code/Git%20Projects/antigravity_phone_chat/Docs/BUG_TRACKING.md) and inspect the `injectMessage` function implementation in `server.js`.
+* **Key Files**: `src/server/routes/messageRoutes.js` (endpoint `/send`), `src/server/cdp/messageInjection.js` (`injectMessage`), `public/js/app.js` (`sendMessage` and `compressImage`), `public/temp_uploads/` (static file repository).
+* **Routing Rule**: If the prompt involves uploading files, attaching images, base64 payload sizes, or pasting images, read the Attachment & Send Button Failure section in [BUG_TRACKING.md](file:///Users/mdaffanahmed/VS%20Code/Git%20Projects/antigravity_phone_chat/Docs/BUG_TRACKING.md) and inspect the `injectMessage` function implementation in `src/server/cdp/messageInjection.js`.
 
 ### 5. UI Design System & Snapshot CSS
 * **Role/Summary**: Complete UI design language, CSS architecture (native + snapshot), rendering pipeline, and UI-specific bug patterns.
-* **Key Files**: `public/css/style.css`, `public/js/app.js` (darkModeOverrides), `server.js` (captureSnapshot, /debug-snapshot).
+* **Key Files**: `public/css/style.css`, `public/js/app.js` (darkModeOverrides), `src/server/cdp/snapshotCapture.js` (captureSnapshot), `src/server/routes/snapshotRoutes.js` (/debug-snapshot).
 * **Routing Rule**: If the prompt involves CSS, dark mode, snapshot rendering, layout bugs, or visual design, read [UI_DESIGN_SYSTEM.md](file:///Users/mdaffanahmed/VS%20Code/Git%20Projects/antigravity_phone_chat/Docs/UI_DESIGN_SYSTEM.md) first.
 
 ---
@@ -139,7 +174,7 @@ When a prompt matches one of these features, read the corresponding documentatio
 ## 📏 Token Budget Guidelines
 
 ### For the Agent:
-- **Read only what you need.** If the task is about the `/send` endpoint, grep for `'/send'` in `server.js` — don't read all 94KB.
+- **Read only what you need.** Locate the specific module in `src/server/` first. If the task is about the `/send` endpoint, grep for `'/send'` in `src/server/routes/messageRoutes.js` — do not read the whole folder or codebase.
 - **Use `grep_search` before `view_file`.** Find the exact line range first, then view only that range.
 - **One edit per turn.** Make one logical change, verify it, then move to the next. Don't batch unrelated edits.
 - **Skip verification for trivial changes.** Comment additions, typo fixes, and doc edits don't need `run_command` verification.

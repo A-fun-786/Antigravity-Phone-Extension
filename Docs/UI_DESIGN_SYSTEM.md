@@ -40,7 +40,7 @@ The native mobile interface (`public/css/style.css`) is structured into distinct
 
 ## 4. Snapshot CSS Design System
 
-The `darkModeOverrides` string in `app.js` is injected into the snapshot to rewrite Antigravity's styling. It is organized into 14 numbered sections:
+The `darkModeOverrides` string in `public/js/app.js` is injected into the snapshot to rewrite Antigravity's styling. It is organized into 14 numbered sections:
 
 1. **Tailwind CSS Variable Overrides**: Forces dark theme tokens.
 2. **Conversation Container**: Ensures `[data-testid="conversation-view"]` is scrollable and readable.
@@ -61,7 +61,7 @@ The `darkModeOverrides` string in `app.js` is injected into the snapshot to rewr
 
 ## 5. Snapshot Rendering Pipeline
 
-**Capture (`server.js`):**
+**Capture (`src/server/cdp/snapshotCapture.js`):**
 1. Uses `querySelectorAll('[data-testid="conversation-view"]')` + `offsetParent !== null` to find the *visible* container (ignoring hidden cached DOM nodes).
 2. Clones the container.
 3. Tags prompt action buttons with `.agent-allow-btn`, etc.
@@ -73,7 +73,7 @@ The `darkModeOverrides` string in `app.js` is injected into the snapshot to rewr
 3. Calls `addMobileCopyButtons()`.
 4. Executes smart scrolling (respects user scroll lock, otherwise auto-scrolls to bottom).
 
-> **Debug Tip**: Access `GET /debug-snapshot` in your desktop browser to render the raw HTML snapshot without the mobile wrapper, useful for diagnosing capture vs. display issues.
+> **Debug Tip**: Access `GET /debug-snapshot` (handled in `src/server/routes/debugRoutes.js`) in your desktop browser to render the raw HTML snapshot without the mobile wrapper, useful for diagnosing capture vs. display issues.
 
 ---
 

@@ -3,7 +3,7 @@
 ## Project Structure
 ```text
 antigravity_phone_chat/
-├── server.js                       # Main Node.js server (Express + WebSocket + CDP + HTTPS)
+├── server.js                       # Thin root entrypoint wrapper (Node.js/ESM)
 ├── generate_ssl.js                 # SSL certificate generator (pure Node.js, no OpenSSL needed)
 ├── ui_inspector.js                 # Utility for inspecting Antigravity UI via CDP
 ├── public/
@@ -24,8 +24,24 @@ antigravity_phone_chat/
 ├── launcher.py                     # Unified Python launcher (Manages Server, Tunnel, QR Codes)
 ├── venv/                           # Python Virtual Environment (Local, gitignored)
 ├── .env                            # Local configuration (Passwords & API Tokens - gitignored)
-├── .env.example                    # Template for environment variables
 ├── package.json                    # Dependencies and metadata
+├── Docs/                           # Documentation folder
+│   ├── CODE_DOCUMENTATION.md
+│   ├── UI_DESIGN_SYSTEM.md
+│   ├── SECURITY.md
+│   └── ...
+└── src/
+    └── server/
+        ├── index.js                # Main wiring entrypoint
+        ├── config.js               # Static configuration values
+        ├── state.js                # Runtime state factory
+        ├── app.js                  # Express app setup and middlewares
+        ├── httpServer.js           # HTTP/HTTPS server initialization
+        ├── polling.js              # Background snapshot polling loop
+        ├── websocket.js            # WebSocket server auth & lifecycle
+        ├── auth.js                 # Auth cookie logic, verify & middleware
+        ├── routes/                 # Express route handler registration modules
+        └── cdp/                    # Chrome DevTools Protocol integrations
 ├── LICENSE                         # GPL v3 License
 └── README.md                       # Quick-start guide
 ```
@@ -48,28 +64,43 @@ graph TD
     PY -- Monitors --> T
 ```
 
-## Core Modules & Methods (server.js)
+## Core Modules & Methods
 
-| Module/Function | Description |
-| :--- | :--- |
-| `killPortProcess()` | Automatically kills any existing process on the server port (prevents EADDRINUSE errors). Works on Windows/Linux/macOS. |
-| `getLocalIP()` | Detects local network IP address for mobile access display. |
-| `discoverCDP()` | Scans ports (9000-9003) to find the Antigravity instance. |
-| `connectCDP()` | Establishes CDP WebSocket with centralized message handling (prevents memory leaks). Uses `pendingCalls` Map with 30s timeout. |
-| `captureSnapshot()` | Injects JS into Antigravity to clone the chat DOM, converts local images/SVGs (`vscode-file://`) into Base64 to prevent broken images on mobile, extracts CSS, and returns it. |
-| `loadSnapshot()` (Client) | Renders the HTML snapshot and injects CSS overrides for dark mode. |
-| `injectMessage()` | Locates the Antigravity input field and simulates typing/submission. Uses `JSON.stringify` for safe escaping. |
-| `setMode()` / `setModel()` | Robust text-based selectors to change AI settings remotely. |
-| `clickElement()` | Relays a physical click from the phone to the desktop. Supports buttons, role-based elements, and toggles like "Thought", "Worked for", or "Edited files". Uses a **Deterministic Targeting Layer** combining text-anchoring, leaf-most filtering, and occurrence index tracking to guarantee the correct element is triggered among clones. |
-| `remoteScroll()` | Syncs phone scroll position to Desktop Antigravity chat. |
-| `getAppState()` | Syncs Mode/Model status and detects history visibility. |
-| `startNewChat()` | Triggers the "New Chat" action on Desktop. |
-| `getChatHistory()` | Strictly scopes the DOM to the "Select a conversation" pop-up container. This accurately scrapes conversation titles while explicitly filtering out background agent logs or source filenames that might otherwise contaminate the history list. |
-| `selectChat()` | Switches the desktop session to a specific conversation title. |
-| `closeHistory()` | Simulates an "Escape" keypress on the desktop via CDP to dismiss the history panel. |
-| `hasChatOpen()` | Verifies if the editor and chat container are currently rendered. |
-| `gracefulShutdown()` | Handles SIGINT/SIGTERM for clean server shutdown. |
-| `createServer()` | Creates Express app with automatic HTTP/HTTPS detection and Auth middleware. |
+The codebase is structured into self-contained modules under `src/server/`:
+
+| Module/Function | Location | Description |
+| :--- | :--- | :--- |
+| `killPortProcess()` | `src/server/utils/network.js` | Automatically kills any existing process on the server port. |
+| `getLocalIP()` | `src/server/utils/network.js` | Detects local network IP address for mobile access display. |
+| `getJson()` | `src/server/utils/network.js` | Helper to fetch JSON from local endpoints. |
+| `discoverCDP()` | `src/server/cdp/client.js` | Scans ports (9000-9003) to find the Antigravity instance. |
+| `connectCDP()` | `src/server/cdp/client.js` | Establishes CDP WebSocket connection. |
+| `initCDP()` | `src/server/cdp/client.js` | Runs discovery and initiates CDP connection. |
+| `captureSnapshot()` | `src/server/cdp/snapshotCapture.js` | Captures and filters the conversation DOM. |
+| `captureSidebar()` | `src/server/cdp/sidebarCapture.js` | Captures active projects and chats list from the sidebar. |
+| `injectMessage()` | `src/server/cdp/messageInjection.js` | Injects text and image payloads into the Lexical editor via CDP. |
+| `clickElement()` | `src/server/cdp/remoteControl.js` | Relays clicks determinitically using a targeting layer. |
+| `remoteScroll()` | `src/server/cdp/remoteControl.js` | Syncs phone scroll position to the desktop chat window. |
+| `setMode()` | `src/server/cdp/modelControl.js` | Remotely sets the execution mode (Fast or Planning). |
+| `setModel()` | `src/server/cdp/modelControl.js` | Remotely selects the active LLM. |
+| `syncModelsFromCDP()`| `src/server/cdp/modelControl.js` | Discovers available models by opening the selector. |
+| `stopGeneration()` | `src/server/cdp/modelControl.js` | Clicks the cancel/stop button to abort generation. |
+| `startNewChat()` | `src/server/cdp/chatControl.js` | Clicks the new chat button. |
+| `startNewProjectChat()`| `src/server/cdp/chatControl.js`| Clicks the new chat button for a specific project. |
+| `getChatHistory()` | `src/server/cdp/chatControl.js` | Extracts recent conversation titles from the history panel. |
+| `selectChat()` | `src/server/cdp/chatControl.js` | Selects a specific conversation by title. |
+| `closeHistory()` | `src/server/cdp/chatControl.js` | Dispatches Escape key event to close the history panel. |
+| `hasChatOpen()` | `src/server/cdp/chatControl.js` | Checks if a chat container and text editor are open. |
+| `getAppState()` | `src/server/cdp/appState.js` | Reads active model and mode state from the UI. |
+| `getRightPaneSnapshot()`| `src/server/cdp/rightPane.js` | Captures active artifacts and implementation plans. |
+| `hashString()` | `src/server/utils/hash.js` | Simple string hashing for snapshot deltas. |
+| `isLocalRequest()` | `src/server/utils/localRequest.js` | Evaluates if request remote IP is within LAN ranges. |
+| `createExpressApp()` | `src/server/app.js` | Creates the Express instance and registers middlewares/routes. |
+| `createHttpServer()` | `src/server/httpServer.js` | Builds the HTTP/HTTPS server and checks for certs. |
+| `createWebSocketServer()`| `src/server/websocket.js` | Sets up WebSocket and handshakes with auth checks. |
+| `startPolling()` | `src/server/polling.js` | Runs the snapshot delta broadcast loop. |
+| `main()` | `src/server/index.js` | The server bootstrap entrypoint. |
+
 
 ## API Endpoints
 
@@ -155,7 +186,7 @@ The server automatically detects SSL certificates and enables HTTPS:
 2. **Open or Start a Chat**
    - Open an existing chat from the bottom-right panel, OR
    - Start a new chat by typing a message
-      - ⚠️ The server requires an active chat (the `#conversation` or `#cascade` element) to capture snapshots
+      - ⚠️ The server requires an active chat (the `[data-testid="conversation-view"]` element) to capture snapshots
 
 3. **Run the Server** (`start_ag_phone_connect.bat` or `.sh`)
    - **Port Cleanup**: Server automatically kills any existing process on port 3000
@@ -188,7 +219,7 @@ The server automatically detects SSL certificates and enables HTTPS:
 - **Self-Signed Certificates**: The generated certificates are self-signed; browsers will show a warning on the first visit.
 - **Selective Access**: LAN devices have automatic access. External tunnel connections (Web Mode) require a passcode or Magic Link.
 - **Zero-Inline Hardening (NEW)**: We have refactored 100% of the mobile frontend to remove `'unsafe-inline'` script dependencies. A strict **Content Security Policy (CSP)** is now enforced, providing a major defense-in-depth layer.
-- **Automated Startup Audit (NEW)**: `server.js` now prints high-visibility warnings if you are using default or insecure session secrets.
+- **Automated Startup Audit (NEW)**: The startup process (`src/server/index.js` and `src/server/auth.js`) now prints high-visibility warnings if you are using default or insecure session secrets.
 - **Input Sanitization**: User input is escaped using `JSON.stringify` before CDP injection.
 - **Output Encoding**: Data scraped from the IDE (like chat history titles) is strictly escaped via an `escapeHtml` utility before being inserted into the mobile DOM to prevent cross-site scripting (XSS).
 

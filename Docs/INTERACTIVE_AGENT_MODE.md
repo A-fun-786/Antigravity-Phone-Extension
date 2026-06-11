@@ -29,11 +29,11 @@ This document describes the design, API endpoints, DOM scraping logic, and user 
 
 ## 🛠 Architecture & API Endpoints
 
-All features are integrated into the core `server.js` and frontend assets under `public/`.
+All features are integrated into the modular backend under `src/server/` and frontend assets under `public/`.
 
-### 1. Backend API (`server.js`)
+### 1. Backend API (`src/server/`)
 
-- **`captureSidebar(cdp)`**:
+- **`captureSidebar(cdp)`** (defined in `src/server/cdp/sidebarCapture.js`):
   - Targets `.bg-sidebar` and parses elements containing `[class*="group/section"]`.
   - Distinguishes between projects (e.g. elements with `[data-project-card="true"]`) and standalone chats.
   - Returns a structured payload:
@@ -48,13 +48,13 @@ All features are integrated into the core `server.js` and frontend assets under 
     }
     ```
 
-- **`POST /switch-chat`**:
+- **`POST /switch-chat`** (handled in `src/server/routes/chatRoutes.js`):
   - Request body: `{ id: "convo-pill-id" }`.
   - Simulates a mouse click event using CDP `Runtime.evaluate` on the matching conversation pill in the sidebar.
 
-- **`POST /agent-action`**:
+- **`POST /agent-action`** (handled in `src/server/routes/remoteRoutes.js`):
   - Request body: `{ action: "Allow" | "Deny" }`.
-  - Scrapes the active chat viewport (`#conversation`, `#cascade`) for button text matching the action, and triggers `.click()`.
+  - Scrapes the active chat viewport or document globally for button text matching the action, and triggers `.click()`.
 
 ### 2. Frontend Assets (`public/`)
 
@@ -94,11 +94,11 @@ if (target) {
 The right pane (artifact viewer, implementation plans, walkthroughs, review views) on the desktop is dynamically scraped and rendered inside a collapsible "Planning Drawer" on the phone. This eliminates file-reading overhead and displays live changes.
 
 ### 2. API Endpoints & Mechanics
-* **`GET /api/planning-files`**:
-  * Calls `getRightPaneSnapshot(cdp)` in the backend.
+* **`GET /api/planning-files`** (handled in `src/server/routes/planningRoutes.js`):
+  * Calls `getRightPaneSnapshot(cdp)` in `src/server/cdp/rightPane.js`.
   * Evaluates a CDP script that locates the active conversation view, looks for explicit panels (e.g. `[data-testid*="artifact"]`, `[data-testid*="right-panel"]`, `[data-testid*="review"]`), or uses bounding rect heuristics (width/height > 200px, located on the right half of the screen, not wrapping the entire screen or conversation container) to clone the panel.
   * Strips hidden nodes (`display: none`) and returns the outer HTML.
-* **`POST /remote-click`**:
+* **`POST /remote-click`** (handled in `src/server/routes/remoteRoutes.js`):
   * Body: `{ selector, index, textContent }`
   * Clicks elements (like artifact cards or file links in chat) remotely on the desktop to open the corresponding right pane views.
 

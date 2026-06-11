@@ -11,7 +11,7 @@
 - **Security-First Event Logic**: Moved from brittle `onclick` attributes to a modern, decoupled event system. This improves codebase maintainability and significantly hardens the client's security posture.
 
 ### ⚡ Performance & Core Hardening
-- **Automated Security Audit**: The `server.js` engine now conducts a real-time security check upon launch. High-visibility ⚠️ warnings are printed to the terminal if default passwords or insecure session secrets are detected.
+- **Automated Security Audit**: The server engine (`src/server/index.js` and `src/server/auth.js`) now conducts a real-time security check upon launch. High-visibility ⚠️ warnings are printed to the terminal if default passwords or insecure session secrets are detected.
 - **Cloudflare Tunnel Support (v0.2.34)**: Added first-class support for `cloudflared` as a native alternative to ngrok, offering even lower latency and seamless global access.
 - **History Reliability (v0.2.35)**: Improved the conversation switching engine with smarter collection polling and workspace filtering, making history navigation significantly more resilient.
 

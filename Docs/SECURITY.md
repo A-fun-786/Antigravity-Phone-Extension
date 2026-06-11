@@ -6,10 +6,10 @@
 
 ## 🟡 1. Secrets Management
 **Status: Warning**
-- **Observation:** `server.js` relies on `.env` for `APP_PASSWORD`, `AUTH_SALT`, and `SESSION_SECRET`.
-- **Finding:** Hardcoded fallback values (`'antigravity'`, `'antigravity_default_salt_99'`, and `'antigravity_secret_key_1337'`) exist in `server.js`.
+- **Observation:** The configuration (`src/server/config.js` / `src/server/auth.js`) relies on `.env` for `APP_PASSWORD`, `AUTH_SALT`, and `SESSION_SECRET`.
+- **Finding:** Hardcoded fallback values (`'antigravity'`, `'antigravity_default_salt_99'`, and `'antigravity_secret_key_1337'`) exist in `src/server/config.js`.
 - **Note:** The `launcher.py` mitigates this by generating a random 6-digit passcode if `APP_PASSWORD` is missing, but the fallback remains in the JS code for manual runs.
-- **Recommendation:** Enforcement of `.env` presence in `server.js` or throwing an error if predictable defaults are used in non-local environments.
+- **Recommendation:** Enforcement of `.env` presence in `src/server/config.js` or throwing an error if predictable defaults are used in non-local environments.
 
 ## 🟢 2. Injection flaws (XSS/XSRF)
 **Status: Hardened**

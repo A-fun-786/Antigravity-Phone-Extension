@@ -37,7 +37,7 @@ If you haven't seen it, this is an open-source tool that mirrors your desktop AI
 
 🛡️ **Zero-Inline CSP**: We successfully refactored 100% of our DOM-based interaction logic to remove `onclick` handlers. With a new strict Content Security Policy disallowing `'unsafe-inline'`, the mobile client is now substantially hardened against XSS.
     
-🕵️‍♂️ **Automated Startup Audit**: `server.js` now conduct an "Identity Check" on launch. It prints warnings if you're using default credentials, ensuring you never run an insecure instance by accident.
+🕵️‍♂️ **Automated Startup Audit**: The backend now conducts an "Identity Check" on launch. It prints warnings if you're using default credentials, ensuring you never run an insecure instance by accident.
 
 🌍 **Cloudflare Tunnel Support**: You can now choose between ngrok or Cloudflare (`cloudflared`) for global access. Cloudflare offers fantastic performance and zero-config global reach.
 

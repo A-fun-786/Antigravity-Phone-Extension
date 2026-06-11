@@ -231,10 +231,21 @@ This tool is designed with a **"Local-First"** security model.
 ## 📂 Documentation
 
 For more technical details, check out:
-- [**Code Documentation**](CODE_DOCUMENTATION.md) - Architecture, Data Flow, and API.
-- [**Security Guide**](SECURITY.md) - HTTPS setup, certificate warnings, and security model.
-- [**Design Philosophy**](DESIGN_PHILOSOPHY.md) - Why it was built this way.
-- [**Contributing**](CONTRIBUTING.md) - Guidelines for developers.
+- [**Code Documentation**](Docs/CODE_DOCUMENTATION.md) - Architecture, Data Flow, and API.
+- [**Security Guide**](Docs/SECURITY.md) - HTTPS setup, certificate warnings, and security model.
+- [**Design Philosophy**](Docs/DESIGN_PHILOSOPHY.md) - Why it was built this way.
+- [**Contributing**](Docs/CONTRIBUTING.md) - Guidelines for developers.
+
+### 🏗️ Developer Architecture
+
+The backend code has been modularized for token efficiency and codebase health. The root `server.js` acts as a thin compatibility entrypoint, while the core logic and ES modules reside inside the `src/server/` directory:
+- `src/server/routes/`: Route modules (e.g. auth, snapshot, messaging, model controls).
+- `src/server/cdp/`: Chrome DevTools Protocol integrations (snapshot capture, message injection, remote control).
+- `src/server/utils/`: Network, hashing, and path handling utility functions.
+- `src/server/app.js`: Express application configuration and middlewares.
+- `src/server/websocket.js`: Real-time WebSocket connection handling and authentication.
+- `src/server/polling.js`: Background polling loop for desktop delta broadcasts.
+
 
 ---
 

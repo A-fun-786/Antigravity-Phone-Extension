@@ -7,7 +7,7 @@ First off, thank you for considering contributing to Antigravity Phone Connect! 
 ### 1. Reporting Bugs
 - **Check existing issues** to see if the bug has already been reported.
 - **Provide context**: What OS are you using? Which port is Antigravity running on? HTTP or HTTPS?
-- **Logs**: Include the output of `server.js` (the console logs) when the error occurred.
+- **Logs**: Include the output of the server console logs when the error occurred.
 
 ### 2. Suggesting Features
 - Open a "Feature Request" on GitHub.
@@ -29,7 +29,7 @@ First off, thank you for considering contributing to Antigravity Phone Connect! 
 2.  Install dependencies: `npm install`
 3.  **(Optional)** Generate SSL certificates: `node generate_ssl.js`
 4.  Start Antigravity with: `antigravity . --remote-debugging-port=9000`
-5.  Run the monitor: `node server.js`
+5.  Run the monitor: `node server.js` (delegates to `src/server/index.js`)
 6.  Access from phone: Use the URL shown in terminal (http or https)
 
 ## Pre-submission Checklist
@@ -47,7 +47,10 @@ First off, thank you for considering contributing to Antigravity Phone Connect! 
 
 | Directory/File | Purpose |
 | :--- | :--- |
-| `server.js` | Main server - add new API endpoints here |
+| `server.js` | Thin compatibility wrapper entrypoint |
+| `src/server/` | Main server codebase (Express, WebSockets, CDP modules, and routes) |
+| `src/server/routes/` | HTTP request routing endpoints (auth, chat, message, model, planning, etc.) |
+| `src/server/cdp/` | Chrome DevTools Protocol features (snapshot, sidebar, remote control, injection) |
 | `public/` | Mobile UI files (index.html, css/style.css, js/app.js) |
 | `generate_ssl.js` | SSL cert generator - uses pure Node.js crypto |
 | `certs/` | Generated SSL files - gitignored, never commit |
