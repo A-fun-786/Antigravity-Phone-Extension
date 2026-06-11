@@ -26,7 +26,6 @@ const sidebarDrawer = document.getElementById('sidebarDrawer');
 const drawerChatList = document.getElementById('drawerChatList');
 const drawerNewChatBtn = document.getElementById('drawerNewChatBtn');
 const drawerCollapseBtn = document.getElementById('drawerCollapseBtn');
-const drawerHistoryBtn = document.getElementById('drawerHistoryBtn');
 const drawerPlanningBtn = document.getElementById('drawerPlanningBtn');
 const drawerScheduleBtn = document.getElementById('drawerScheduleBtn');
 const drawerSettingsBtn = document.getElementById('drawerSettingsBtn');
@@ -273,7 +272,7 @@ async function loadSnapshot() {
             '    --surface-bg: #000000;\n' +
             '    --surface-hover: #2a2a2a;\n' +
             '}\n' +
-
+            
             /* ── 2. Conversation Container ── */
             '#conversation, #chat, #cascade, [data-testid="conversation-view"] {\n' +
             '    background-color: transparent !important;\n' +
@@ -880,8 +879,8 @@ async function sendMessage() {
     // Optimistic UI updates
     const previousValue = messageInput.value;
     const previousImage = attachedImageBase64;
+    
     messageInput.value = ''; // Clear immediately
-    messageInput.style.height = 'auto'; // Reset height
     messageInput.blur(); // Close keyboard on mobile immediately
     
     attachedImageBase64 = null;
@@ -1009,8 +1008,8 @@ messageInput.addEventListener('keydown', (e) => {
 });
 
 messageInput.addEventListener('input', function () {
-    this.style.height = 'auto';
-    this.style.height = (this.scrollHeight) + 'px';
+    // Auto-resize disabled per user request
+    // Text area will just scroll natively
 });
 
 // --- Support Modal Logic ---
@@ -1105,8 +1104,7 @@ scrollToBottomBtn.addEventListener('click', () => {
 // --- Quick Actions ---
 function quickAction(text) {
     messageInput.value = text;
-    messageInput.style.height = 'auto';
-    messageInput.style.height = messageInput.scrollHeight + 'px';
+    // Auto-resize disabled
     messageInput.focus();
 }
 
@@ -1606,12 +1604,6 @@ if (drawerNewChatBtn) {
     drawerNewChatBtn.addEventListener('click', () => {
         toggleDrawer(false);
         startNewChat();
-    });
-}
-if (drawerHistoryBtn) {
-    drawerHistoryBtn.addEventListener('click', () => {
-        toggleDrawer(false);
-        showChatHistory();
     });
 }
 if (drawerPlanningBtn) {
