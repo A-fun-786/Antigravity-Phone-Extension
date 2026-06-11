@@ -136,22 +136,21 @@
     <div class="sidebar-drawer" id="sidebarDrawer">
         <!-- Sidebar Header -->
         <div class="drawer-header">
-            <h2>Antigravity</h2>
-            <button class="drawer-collapse-btn" id="drawerCollapseBtn" aria-label="Close menu">
-                <span class="material-symbols-outlined">menu_open</span>
+            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                <h2>Antigravity</h2>
+                <button class="drawer-collapse-btn" id="drawerCollapseBtn" aria-label="Close menu">
+                    <span class="material-symbols-outlined">menu_open</span>
+                </button>
+            </div>
+            <div style="width: 100%; height: 1px; background: rgba(255, 255, 255, 0.08); margin: 16px 0 8px 0;"></div>
+            <button class="drawer-action-item" id="drawerNewChatBtn" style="padding: 8px 4px;">
+                <span class="material-symbols-outlined">edit</span>
+                <span>New chat</span>
             </button>
         </div>
 
         <!-- Sidebar Actions -->
         <nav class="drawer-actions">
-            <button class="drawer-action-item" id="drawerNewChatBtn">
-                <span class="material-symbols-outlined">edit</span>
-                <span>New chat</span>
-            </button>
-            <button class="drawer-action-item" id="drawerHistoryBtn">
-                <span class="material-symbols-outlined">schedule</span>
-                <span>Conversation History</span>
-            </button>
             <button class="drawer-action-item" id="drawerScheduleBtn" disabled>
                 <span class="material-symbols-outlined">calendar_month</span>
                 <span>Schedule Task</span>

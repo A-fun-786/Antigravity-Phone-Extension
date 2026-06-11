@@ -894,6 +894,7 @@ textarea:-webkit-autofill:focus {
     width: 85vw;
     max-width: 320px;
     height: 100vh;
+    height: 100dvh;
     background: var(--bg-app);
     z-index: 3000;
     display: flex;
@@ -912,8 +913,7 @@ textarea:-webkit-autofill:focus {
     padding: env(safe-area-inset-top, 10px) 24px 16px;
     padding-top: calc(env(safe-area-inset-top, 10px) + 24px);
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    flex-direction: column;
 }
 
 .drawer-header h2 {
