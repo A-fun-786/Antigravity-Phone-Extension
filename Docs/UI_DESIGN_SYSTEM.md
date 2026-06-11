@@ -7,22 +7,23 @@ This document is the canonical source of truth for all UI design philosophy, CSS
 ## 1. Design Language & Philosophy
 
 ### Mobile-First Navigation
-The mobile UI utilizes a **Premium Full-Screen History Layer**. Mobile screens are too small for sidebar navigation. By utilizing a sleek modal-layered approach—complete with elevated cards, gradient icons, and responsive micro-animations—we provide high-density information (recent chats) as a purely native mobile experience without cluttering the primary viewing area. Bi-directional synchronization is enforced by executing a programmatic Escape keypress on the desktop when the history layer is closed on the phone, preventing stale UI popups.
+The mobile UI utilizes a **Sidebar Drawer Navigation System**. Instead of a cluttered header or isolated history layer, a sleek sliding drawer groups chats by project and houses core action buttons (New Chat, History, Schedule Task, Planning). This utilizes Material Symbols and a native mobile feel. The History view remains available as a full-screen overlay for deep dives.
 
-### Visual Parity (The Dark Mode Bridge)
-Antigravity themes have thousands of CSS variables. Instead of trying to mirror every variable perfectly, we use **Aggressive CSS Inheritance**. The frontend captures the raw HTML and wraps it in a modern, slate-dark UI that feels premium and natively mobile, regardless of the Desktop's theme. This is layered with **Glassmorphism UI components** and fine-tuned dark mode styling, ensuring that settings bars, model states, and quick actions remain frictionlessly readable.
+### Visual Parity (Neural Agentic IDE Theme)
+Antigravity themes have thousands of CSS variables. Instead of trying to mirror every variable perfectly, we use **Aggressive CSS Inheritance**. The frontend captures the raw HTML and wraps it in a modern, OLED-optimized Neural Agentic IDE UI that feels like a high-precision instrument. This is layered with **Glassmorphism UI components** and fine-tuned dark mode styling, ensuring that model states, quick actions, and sidebar interactions remain sleek and highly responsive.
 
 ---
 
 ## 2. Color Palette & CSS Variables
 
-The core variables override Antigravity's Tailwind variables during snapshot rendering to enforce our dark theme:
+The core variables override Antigravity's Tailwind variables during snapshot rendering to enforce our Neural theme:
 
-- **Backgrounds**: `--bg-app: #090e17`, `--background: #090e17`
-- **Cards**: `--card: rgba(30, 41, 59, 0.9)`, `--muted: #1e293b`
-- **Text**: `--text-main: #f8fafc`, `--text-muted: #94a3b8`
-- **Borders**: `--border-color: #334155`, `--card-border: rgba(51, 65, 85, 0.6)`
-- **Accent**: `--accent: #6366f1` (Indigo)
+- **Backgrounds**: `--bg-app: #000000`, `--background: #000000`, `--surface-hover: #2a2a2a`
+- **Cards**: `--card: rgba(32, 31, 31, 0.9)`, `--muted: #141313`
+- **Text**: `--text-main: #e5e2e1` (Warm Neutral), `--text-muted: #c4c7c7`
+- **Borders**: `--border-color: #444748`, `--card-border: rgba(68, 71, 72, 0.6)`
+- **Accent**: `--accent: #00dbe9` (Neon Cyan)
+- **Typography**: `Hanken Grotesk` (Body), `JetBrains Mono` (Code/Labels)
 
 ---
 
@@ -30,11 +31,12 @@ The core variables override Antigravity's Tailwind variables during snapshot ren
 
 The native mobile interface (`public/css/style.css`) is structured into distinct functional sections:
 
-- **Layout**: Fixed header + flex-growing body + fixed bottom input. Overscroll bounce is prevented on iOS.
-- **Sidebar Drawer**: Slides in from the left with backdrop blur. Groups chats by project with custom folder icons.
+- **Layout**: Clean header (Hamburger + Model Pill + New Chat) + flex-growing body + fixed bottom input. Overscroll bounce is prevented on iOS.
+- **Sidebar Drawer**: Slides in from the left. Contains primary action buttons, project-grouped chats, and a user footer (avatar, PRO badge, support).
+- **Input Bar**: Pill-shaped input area with circular attachment and send buttons. Contextual STOP button floats above as a pill (`.stop-pill.show`).
 - **History Layer**: A full-screen overlay for standalone conversation history.
 - **Quick Actions**: Horizontal scrolling chips below the input area.
-- **Modals & Settings**: Glassmorphism overlays for model/mode selection and SSL banner.
+- **Modals & Overlays**: Glassmorphism overlays for model selection, SSL banners, and planning layers.
 
 ---
 
@@ -42,17 +44,17 @@ The native mobile interface (`public/css/style.css`) is structured into distinct
 
 The `darkModeOverrides` string in `public/js/app.js` is injected into the snapshot to rewrite Antigravity's styling. It is organized into 14 numbered sections:
 
-1. **Tailwind CSS Variable Overrides**: Forces dark theme tokens.
-2. **Conversation Container**: Ensures `[data-testid="conversation-view"]` is scrollable and readable.
-3. **User Messages**: Gets indigo-accent floating cards with a left border. `sticky` positioning is removed to prevent scroll overlap.
-4. **User Card Inner Surface**: Shimmer gradients for `.bg-card-border`.
+1. **CSS Variable Overrides**: Forces Neural dark theme tokens.
+2. **Conversation Container**: Ensures `[data-testid="conversation-view"]` is scrollable, using `Hanken Grotesk`.
+3. **User Messages**: Gets neon cyan accent floating cards with a left border. `sticky` positioning is removed to prevent scroll overlap.
+4. **Card Surfaces**: Shimmer gradients for `.bg-card-border` (cyan/teal blend).
 5. **Tool/Command Blocks**: Dark glass styling for terminal outputs.
-6. **Agent Action Buttons**: Gradient pills (green Allow, red Deny, blue Review).
-7. **Typography & Text Colors**: Overrides hardcoded black text to `#e2e8f0`.
+6. **Agent Action Buttons**: Solid/Ghost pills (Cyan gradient Allow, Pink outline Deny, Cyan outline Review).
+7. **Typography & Text Colors**: Overrides hardcoded black text to `#e5e2e1`. Links styled cyan.
 8. **Images & Icons**: Hides local absolute path images (`C:`, `/AppData`) while preserving valid base64 attachments.
-9. **Code Blocks**: Indigo-tinted glass for inline code, JetBrains Mono for pre blocks.
+9. **Code Blocks**: Cyan-tinted glass for inline code, JetBrains Mono for pre blocks (`#0e0e0e` background).
 10. **Copy Button**: Injects native mobile copy buttons into `pre` blocks.
-11. **Blockquotes & Tables**: Indigo borders and translucent backgrounds.
+11. **Blockquotes & Tables**: Cyan borders and translucent backgrounds.
 12. **Scrollbar & White BG Overrides**: Hides webkit scrollbars.
 13. **Headings Polish**: Tightens margins and letter-spacing for h1/h2/h3.
 14. **List Styling**: Corrects padding and line-heights for ul/ol.

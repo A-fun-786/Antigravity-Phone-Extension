@@ -8,17 +8,13 @@ const imageInput = document.getElementById('imageInput');
 const scrollToBottomBtn = document.getElementById('scrollToBottom');
 const statusDot = document.getElementById('statusDot');
 const statusText = document.getElementById('statusText');
-const refreshBtn = document.getElementById('refreshBtn');
 const stopBtn = document.getElementById('stopBtn');
 const newChatBtn = document.getElementById('newChatBtn');
-const historyBtn = document.getElementById('historyBtn');
 
-const modeBtn = document.getElementById('modeBtn');
 const modelBtn = document.getElementById('modelBtn');
 const modalOverlay = document.getElementById('modalOverlay');
 const modalList = document.getElementById('modalList');
 const modalTitle = document.getElementById('modalTitle');
-const modeText = document.getElementById('modeText');
 const modelText = document.getElementById('modelText');
 const historyLayer = document.getElementById('historyLayer');
 const historyList = document.getElementById('historyList');
@@ -29,6 +25,11 @@ const drawerOverlay = document.getElementById('drawerOverlay');
 const sidebarDrawer = document.getElementById('sidebarDrawer');
 const drawerChatList = document.getElementById('drawerChatList');
 const drawerNewChatBtn = document.getElementById('drawerNewChatBtn');
+const drawerCollapseBtn = document.getElementById('drawerCollapseBtn');
+const drawerHistoryBtn = document.getElementById('drawerHistoryBtn');
+const drawerPlanningBtn = document.getElementById('drawerPlanningBtn');
+const drawerScheduleBtn = document.getElementById('drawerScheduleBtn');
+const drawerSettingsBtn = document.getElementById('drawerSettingsBtn');
 
 const artifactViewLayer = document.getElementById('artifactViewLayer');
 const closeArtifactBtn = document.getElementById('closeArtifactBtn');
@@ -88,8 +89,6 @@ async function fetchAppState() {
 
         // Mode Sync (Fast/Planning) - Desktop is source of truth
         if (data.mode && data.mode !== 'Unknown') {
-            modeText.textContent = data.mode;
-            modeBtn.classList.toggle('active', data.mode === 'Planning');
             currentMode = data.mode;
         }
 
@@ -212,12 +211,6 @@ function updateStatus(connected) {
 // --- Rendering ---
 async function loadSnapshot() {
     try {
-        // Add spin animation to refresh button
-        const icon = refreshBtn.querySelector('svg');
-        icon.classList.remove('spin-anim');
-        void icon.offsetWidth; // trigger reflow
-        icon.classList.add('spin-anim');
-
         const response = await fetchWithAuth('/snapshot');
         if (!response.ok) {
             if (response.status === 503) {
@@ -259,31 +252,33 @@ async function loadSnapshot() {
 
         const darkModeOverrides = '/* --- BASE SNAPSHOT CSS --- */\n' +
             data.css +
-            '\n\n/* === PREMIUM PHONE CONNECT DARK THEME === */\n' +
+            '\n\n/* === NEURAL AGENTIC IDE DARK THEME === */\n' +
 
-            /* ── 1. Tailwind CSS Variable Overrides ── */
+            /* ── 1. CSS Variable Overrides ── */
             ':root {\n' +
-            '    --bg-app: #090e17;\n' +
-            '    --text-main: #f8fafc;\n' +
-            '    --text-muted: #94a3b8;\n' +
-            '    --border-color: #334155;\n' +
-            '    --background: #090e17;\n' +
-            '    --card: rgba(30, 41, 59, 0.9);\n' +
-            '    --card-border: rgba(51, 65, 85, 0.6);\n' +
-            '    --card-foreground: #f8fafc;\n' +
-            '    --foreground: #f8fafc;\n' +
-            '    --muted: #1e293b;\n' +
-            '    --muted-foreground: #94a3b8;\n' +
-            '    --accent: #6366f1;\n' +
-            '    --accent-foreground: #f8fafc;\n' +
-            '    --border: #334155;\n' +
+            '    --bg-app: #000000;\n' +
+            '    --text-main: #e5e2e1;\n' +
+            '    --text-muted: #c4c7c7;\n' +
+            '    --border-color: #444748;\n' +
+            '    --background: #000000;\n' +
+            '    --card: rgba(32, 31, 31, 0.9);\n' +
+            '    --card-border: rgba(68, 71, 72, 0.6);\n' +
+            '    --card-foreground: #e5e2e1;\n' +
+            '    --foreground: #e5e2e1;\n' +
+            '    --muted: #141313;\n' +
+            '    --muted-foreground: #c4c7c7;\n' +
+            '    --accent: #00dbe9;\n' +
+            '    --accent-foreground: #000000;\n' +
+            '    --border: #444748;\n' +
+            '    --surface-bg: #000000;\n' +
+            '    --surface-hover: #2a2a2a;\n' +
             '}\n' +
 
             /* ── 2. Conversation Container ── */
             '#conversation, #chat, #cascade, [data-testid="conversation-view"] {\n' +
             '    background-color: transparent !important;\n' +
             '    color: var(--text-main) !important;\n' +
-            '    font-family: \'Inter\', system-ui, sans-serif !important;\n' +
+            '    font-family: \'Hanken Grotesk\', system-ui, sans-serif !important;\n' +
             '    position: relative !important;\n' +
             '    width: 100% !important;\n' +
             '    height: auto !important;\n' +
@@ -304,45 +299,42 @@ async function loadSnapshot() {
             '    max-height: none !important;\n' +
             '}\n' +
 
-            /* ── 3. User Messages — Indigo Accent Card ── */
+            /* ── 3. User Messages — Cyan Accent Border ── */
             '[aria-label="User message"] {\n' +
             '    position: relative !important;\n' +
             '    top: auto !important;\n' +
             '    z-index: auto !important;\n' +
-            '    background: rgba(99, 102, 241, 0.06) !important;\n' +
-            '    border-left: 3px solid #6366f1 !important;\n' +
+            '    background: rgba(0, 219, 233, 0.04) !important;\n' +
+            '    border-left: 3px solid #00dbe9 !important;\n' +
             '    border-radius: 0 12px 12px 0 !important;\n' +
             '    margin: 16px 0 12px 0 !important;\n' +
             '    padding: 12px 14px !important;\n' +
-            '    backdrop-filter: blur(8px) !important;\n' +
-            '    -webkit-backdrop-filter: blur(8px) !important;\n' +
-            '    box-shadow: 0 2px 12px rgba(99, 102, 241, 0.08) !important;\n' +
+            '    box-shadow: 0 2px 12px rgba(0, 219, 233, 0.06) !important;\n' +
             '}\n' +
-            '/* Kill the gradient pseudo-element that causes overlap */\n' +
             '[aria-label="User message"]::after {\n' +
             '    content: none !important;\n' +
             '    display: none !important;\n' +
             '}\n' +
 
-            /* ── 4. User Card Inner Surface ── */
+            /* ── 4. Card Surfaces ── */
             '.bg-card-border {\n' +
-            '    background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(59, 130, 246, 0.08)) !important;\n' +
+            '    background: linear-gradient(135deg, rgba(0, 219, 233, 0.12), rgba(124, 244, 255, 0.06)) !important;\n' +
             '    border-radius: 12px !important;\n' +
             '    padding: 1px !important;\n' +
             '}\n' +
             '.bg-card {\n' +
-            '    background: rgba(30, 41, 59, 0.85) !important;\n' +
+            '    background: rgba(32, 31, 31, 0.85) !important;\n' +
             '    border-radius: 11px !important;\n' +
-            '    color: #f8fafc !important;\n' +
+            '    color: #e5e2e1 !important;\n' +
             '}\n' +
             '.bg-background {\n' +
-            '    background-color: #090e17 !important;\n' +
+            '    background-color: #000000 !important;\n' +
             '}\n' +
 
             /* ── 5. Tool/Command Blocks ── */
             '[class*="group/run-command"] {\n' +
-            '    background: rgba(15, 23, 42, 0.7) !important;\n' +
-            '    border: 1px solid rgba(51, 65, 85, 0.5) !important;\n' +
+            '    background: rgba(14, 14, 14, 0.7) !important;\n' +
+            '    border: 1px solid rgba(68, 71, 72, 0.5) !important;\n' +
             '    border-radius: 10px !important;\n' +
             '    margin: 6px 0 !important;\n' +
             '    overflow: hidden !important;\n' +
@@ -350,39 +342,38 @@ async function loadSnapshot() {
 
             /* ── 6. Agent Action Buttons ── */
             '.agent-allow-btn {\n' +
-            '    background: linear-gradient(135deg, #22c55e, #16a34a) !important;\n' +
-            '    color: #fff !important;\n' +
+            '    background: linear-gradient(135deg, #00dbe9, #7cf4ff) !important;\n' +
+            '    color: #000 !important;\n' +
             '    border: none !important;\n' +
-            '    border-radius: 20px !important;\n' +
+            '    border-radius: 8px !important;\n' +
             '    padding: 8px 18px !important;\n' +
             '    font-weight: 600 !important;\n' +
             '    font-size: 13px !important;\n' +
             '    cursor: pointer !important;\n' +
-            '    box-shadow: 0 2px 10px rgba(34, 197, 94, 0.25) !important;\n' +
+            '    box-shadow: 0 2px 10px rgba(0, 219, 233, 0.25) !important;\n' +
             '    transition: transform 0.2s, box-shadow 0.2s !important;\n' +
             '}\n' +
             '.agent-deny-btn {\n' +
-            '    background: linear-gradient(135deg, #ef4444, #dc2626) !important;\n' +
-            '    color: #fff !important;\n' +
-            '    border: none !important;\n' +
-            '    border-radius: 20px !important;\n' +
+            '    background: transparent !important;\n' +
+            '    color: #ffb4ab !important;\n' +
+            '    border: 1px solid rgba(255, 180, 171, 0.4) !important;\n' +
+            '    border-radius: 8px !important;\n' +
             '    padding: 8px 18px !important;\n' +
             '    font-weight: 600 !important;\n' +
             '    font-size: 13px !important;\n' +
             '    cursor: pointer !important;\n' +
-            '    box-shadow: 0 2px 10px rgba(239, 68, 68, 0.25) !important;\n' +
             '    transition: transform 0.2s, box-shadow 0.2s !important;\n' +
             '}\n' +
             '.agent-review-btn {\n' +
-            '    background: linear-gradient(135deg, #3b82f6, #2563eb) !important;\n' +
-            '    color: #fff !important;\n' +
-            '    border: none !important;\n' +
-            '    border-radius: 20px !important;\n' +
+            '    background: transparent !important;\n' +
+            '    color: #00dbe9 !important;\n' +
+            '    border: 1px solid rgba(0, 219, 233, 0.4) !important;\n' +
+            '    border-radius: 8px !important;\n' +
             '    padding: 8px 18px !important;\n' +
             '    font-weight: 600 !important;\n' +
             '    font-size: 13px !important;\n' +
             '    cursor: pointer !important;\n' +
-            '    box-shadow: 0 2px 10px rgba(59, 130, 246, 0.25) !important;\n' +
+            '    box-shadow: 0 2px 10px rgba(0, 219, 233, 0.15) !important;\n' +
             '    transition: transform 0.2s, box-shadow 0.2s !important;\n' +
             '}\n' +
 
@@ -399,12 +390,12 @@ async function loadSnapshot() {
             '}\n' +
             '[style*="color: rgb(0, 0, 0)"], [style*="color: black"],\n' +
             '[style*="color:#000"], [style*="color: #000"] {\n' +
-            '    color: #e2e8f0 !important;\n' +
+            '    color: #e5e2e1 !important;\n' +
             '}\n' +
             '#conversation a, #chat a, #cascade a, [data-testid="conversation-view"] a {\n' +
-            '    color: #818cf8 !important;\n' +
+            '    color: #7cf4ff !important;\n' +
             '    text-decoration: underline;\n' +
-            '    text-decoration-color: rgba(129, 140, 248, 0.3) !important;\n' +
+            '    text-decoration-color: rgba(124, 244, 255, 0.3) !important;\n' +
             '    text-underline-offset: 2px !important;\n' +
             '}\n' +
 
@@ -429,19 +420,19 @@ async function loadSnapshot() {
             ':not(pre) > code {\n' +
             '    padding: 1px 5px !important;\n' +
             '    border-radius: 4px !important;\n' +
-            '    background-color: rgba(99, 102, 241, 0.12) !important;\n' +
-            '    color: #c7d2fe !important;\n' +
+            '    background-color: rgba(0, 219, 233, 0.1) !important;\n' +
+            '    color: #7cf4ff !important;\n' +
             '    font-size: 0.85em !important;\n' +
             '    line-height: 1.2 !important;\n' +
             '    white-space: normal !important;\n' +
             '    font-family: \'JetBrains Mono\', monospace !important;\n' +
             '}\n' +
             'pre, code, .monaco-editor-background, [class*="terminal"] {\n' +
-            '    background-color: #0f172a !important;\n' +
-            '    color: #e2e8f0 !important;\n' +
+            '    background-color: #0e0e0e !important;\n' +
+            '    color: #e5e2e1 !important;\n' +
             '    font-family: \'JetBrains Mono\', monospace !important;\n' +
             '    border-radius: 8px;\n' +
-            '    border: 1px solid rgba(51, 65, 85, 0.6);\n' +
+            '    border: 1px solid #444748;\n' +
             '}\n' +
             'pre {\n' +
             '    position: relative !important;\n' +
@@ -462,7 +453,7 @@ async function loadSnapshot() {
             '    padding: 1px 6px !important;\n' +
             '    margin: 0px !important;\n' +
             '    vertical-align: middle !important;\n' +
-            '    background-color: #0f172a !important;\n' +
+            '    background-color: #0e0e0e !important;\n' +
             '    font-size: 0.85em !important;\n' +
             '}\n' +
             'pre.single-line-pre > code {\n' +
@@ -484,8 +475,8 @@ async function loadSnapshot() {
             '    position: absolute !important;\n' +
             '    top: 6px !important;\n' +
             '    right: 6px !important;\n' +
-            '    background: rgba(99, 102, 241, 0.15) !important;\n' +
-            '    color: #818cf8 !important;\n' +
+            '    background: rgba(0, 219, 233, 0.12) !important;\n' +
+            '    color: #00dbe9 !important;\n' +
             '    border: none !important;\n' +
             '    width: 26px !important;\n' +
             '    height: 26px !important;\n' +
@@ -501,8 +492,8 @@ async function loadSnapshot() {
             '    margin: 0 !important;\n' +
             '}\n' +
             '.mobile-copy-btn:hover, .mobile-copy-btn:focus {\n' +
-            '    background: rgba(99, 102, 241, 0.3) !important;\n' +
-            '    color: #a5b4fc !important;\n' +
+            '    background: rgba(0, 219, 233, 0.25) !important;\n' +
+            '    color: #7cf4ff !important;\n' +
             '}\n' +
             '.mobile-copy-btn svg {\n' +
             '    width: 14px !important;\n' +
@@ -514,9 +505,9 @@ async function loadSnapshot() {
 
             /* ── 11. Blockquotes & Tables ── */
             'blockquote {\n' +
-            '    border-left: 3px solid #6366f1 !important;\n' +
-            '    background: rgba(99, 102, 241, 0.06) !important;\n' +
-            '    color: #cbd5e1 !important;\n' +
+            '    border-left: 3px solid #00dbe9 !important;\n' +
+            '    background: rgba(0, 219, 233, 0.04) !important;\n' +
+            '    color: #c4c7c7 !important;\n' +
             '    padding: 10px 14px !important;\n' +
             '    margin: 8px 0 !important;\n' +
             '    border-radius: 0 8px 8px 0 !important;\n' +
@@ -524,16 +515,16 @@ async function loadSnapshot() {
             'table {\n' +
             '    border-collapse: collapse !important;\n' +
             '    width: 100% !important;\n' +
-            '    border: 1px solid rgba(51, 65, 85, 0.6) !important;\n' +
+            '    border: 1px solid #444748 !important;\n' +
             '    border-radius: 8px !important;\n' +
             '}\n' +
             'th, td {\n' +
-            '    border: 1px solid rgba(51, 65, 85, 0.6) !important;\n' +
+            '    border: 1px solid #444748 !important;\n' +
             '    padding: 8px 10px !important;\n' +
-            '    color: #e2e8f0 !important;\n' +
+            '    color: #e5e2e1 !important;\n' +
             '}\n' +
             'th {\n' +
-            '    background: rgba(99, 102, 241, 0.08) !important;\n' +
+            '    background: rgba(0, 219, 233, 0.06) !important;\n' +
             '    font-weight: 600 !important;\n' +
             '}\n' +
 
@@ -592,16 +583,11 @@ async function loadSnapshot() {
                     projectHeader.style.alignItems = 'center';
                     projectHeader.innerHTML = `
                         <div style="display: flex; align-items: center; gap: 8px;">
-                            <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
-                                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                            </svg>
+                            <span class="material-symbols-outlined" style="font-size:20px; color: var(--accent);">folder</span>
                             <span>${project.name}</span>
                         </div>
                         <button class="project-new-chat-btn" aria-label="New Chat" style="background:transparent; border:none; color:var(--accent); cursor:pointer; padding:4px; display:flex; align-items:center; justify-content:center; border-radius:50%; transition: background 0.2s;">
-                            <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
-                                <line x1="12" y1="5" x2="12" y2="19"></line>
-                                <line x1="5" y1="12" x2="19" y2="12"></line>
-                            </svg>
+                            <span class="material-symbols-outlined" style="font-size:18px;">add</span>
                         </button>
                     `;
                     
@@ -655,9 +641,7 @@ async function loadSnapshot() {
                 const conversationsHeader = document.createElement('div');
                 conversationsHeader.className = 'drawer-section-header';
                 conversationsHeader.innerHTML = `
-                    <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
-                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                    </svg>
+                    <span class="material-symbols-outlined" style="font-size:20px; color: var(--text-muted);">chat_bubble_outline</span>
                     <span>Conversations</span>
                 `;
                 drawerChatList.appendChild(conversationsHeader);
@@ -889,14 +873,8 @@ function scrollToBottom() {
 }
 
 let attachedImageBase64 = null;
-const originalAttachmentIcon = `
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
-    </svg>`;
-const attachedCheckmarkIcon = `
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="20 6 9 17 4 12"></polyline>
-    </svg>`;
+const originalAttachmentIcon = `<span class="material-symbols-outlined">add</span>`;
+const attachedCheckmarkIcon = `<span class="material-symbols-outlined" style="color: var(--success);">check</span>`;
 
 // --- Inputs ---
 async function sendMessage() {
@@ -1027,11 +1005,7 @@ if (attachmentBtn && imageInput) {
     });
 }
 
-refreshBtn.addEventListener('click', () => {
-    // Refresh both Chat and State (Mode/Model)
-    loadSnapshot();
-    fetchAppState(); // PRIORITY: Sync from Desktop
-});
+// Refresh is now auto-only (no manual refresh button in Neural UI)
 
 messageInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -1199,7 +1173,6 @@ async function showChatHistory() {
         </div>
     `;
     historyLayer.classList.add('show');
-    historyBtn.style.opacity = '1';
 
     try {
         const res = await fetchWithAuth('/chat-history');
@@ -1212,10 +1185,7 @@ async function showChatHistory() {
                     <div class="history-state-title">Error loading history</div>
                     <div class="history-state-desc">${data.error}</div>
                     <button class="history-new-btn mt-4">
-                        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                            <line x1="5" y1="12" x2="19" y2="12"></line>
-                        </svg>
+                        <span class="material-symbols-outlined" style="font-size:20px;">add</span>
                         Start New Conversation
                     </button>
                 </div>
@@ -1231,10 +1201,7 @@ async function showChatHistory() {
                     <div class="history-state-title">No recent chats found</div>
                     <div class="history-state-desc">Start a new conversation to see them here.</div>
                     <button class="history-new-btn mt-4">
-                        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                            <line x1="12" y1="5" x2="12" y2="19"></line>
-                            <line x1="5" y1="12" x2="19" y2="12"></line>
-                        </svg>
+                        <span class="material-symbols-outlined" style="font-size:20px;">add</span>
                         Start New Conversation
                     </button>
                 </div>
@@ -1246,10 +1213,7 @@ async function showChatHistory() {
         let html = `
             <div class="history-action-container">
                 <button class="history-new-btn">
-                    <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <line x1="5" y1="12" x2="19" y2="12"></line>
-                    </svg>
+                    <span class="material-symbols-outlined" style="font-size:20px;">add</span>
                     New Conversation
                 </button>
             </div>
@@ -1261,17 +1225,13 @@ async function showChatHistory() {
             html += `
                 <div class="history-card" data-title="${safeTitle}">
                     <div class="history-card-icon">
-                        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                        </svg>
+                        <span class="material-symbols-outlined" style="font-size:20px;">chat_bubble_outline</span>
                     </div>
                     <div class="history-card-content">
                         <span class="history-card-title">${escapeHtml(chat.title)}</span>
                     </div>
                     <div class="history-card-arrow">
-                        <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="9 18 15 12 9 6"></polyline>
-                        </svg>
+                        <span class="material-symbols-outlined" style="font-size:20px;">chevron_right</span>
                     </div>
                 </div>
             `;
@@ -1348,10 +1308,7 @@ async function checkChatStatus() {
 function showEmptyState() {
     chatContent.innerHTML = `
         <div class="empty-state">
-            <svg class="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                <line x1="9" y1="10" x2="15" y2="10"></line>
-            </svg>
+            <span class="material-symbols-outlined" style="font-size:72px; color: var(--accent); opacity:0.8; filter: drop-shadow(0 0 16px rgba(0,219,233,0.25)); margin-bottom:24px;">chat_bubble_outline</span>
             <h2>No Chat Open</h2>
             <p>Start a new conversation or select one from your history to begin chatting.</p>
             <button class="empty-state-btn" id="newChatFromEmptyBtn">
@@ -1395,29 +1352,8 @@ modalOverlay.onclick = (e) => {
     if (e.target === modalOverlay) closeModal();
 };
 
-modeBtn.addEventListener('click', () => {
-    openModal('Select Mode', ['Fast', 'Planning'], async (mode) => {
-        modeText.textContent = 'Setting...';
-        try {
-            const res = await fetchWithAuth('/set-mode', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ mode })
-            });
-            const data = await res.json();
-            if (data.success) {
-                currentMode = mode;
-                modeText.textContent = mode;
-                modeBtn.classList.toggle('active', mode === 'Planning');
-            } else {
-                alert('Error: ' + (data.error || 'Unknown'));
-                modeText.textContent = currentMode;
-            }
-        } catch (e) {
-            modeText.textContent = currentMode;
-        }
-    });
-});
+// Mode selection is now integrated into model selector modal
+// When user opens model picker, they can also toggle mode
 
 modelBtn.addEventListener('click', async () => {
     const prevText = modelText.textContent;
@@ -1671,10 +1607,23 @@ function toggleDrawer(show) {
 
 if (hamburgerBtn) hamburgerBtn.addEventListener('click', () => toggleDrawer(true));
 if (drawerOverlay) drawerOverlay.addEventListener('click', () => toggleDrawer(false));
+if (drawerCollapseBtn) drawerCollapseBtn.addEventListener('click', () => toggleDrawer(false));
 if (drawerNewChatBtn) {
     drawerNewChatBtn.addEventListener('click', () => {
         toggleDrawer(false);
         startNewChat();
+    });
+}
+if (drawerHistoryBtn) {
+    drawerHistoryBtn.addEventListener('click', () => {
+        toggleDrawer(false);
+        showChatHistory();
+    });
+}
+if (drawerPlanningBtn) {
+    drawerPlanningBtn.addEventListener('click', () => {
+        toggleDrawer(false);
+        openPlanningDrawer();
     });
 }
 
@@ -1793,7 +1742,7 @@ if (closeArtifactBtn) {
 // ==========================================
 // PLANNING PANE LOGIC
 // ==========================================
-const planningBtn = document.getElementById('planningBtn');
+// planningBtn is now drawerPlanningBtn (wired in drawer handlers above)
 const planningLayer = document.getElementById('planningLayer');
 const closePlanningBtn = document.getElementById('closePlanningBtn');
 const planningContent = document.getElementById('planningContent');
@@ -1823,9 +1772,7 @@ async function openPlanningDrawer() {
     }
 }
 
-if (planningBtn) {
-    planningBtn.addEventListener('click', () => openPlanningDrawer());
-}
+// Planning button is now in sidebar (drawerPlanningBtn), wired above
 
 if (closePlanningBtn) {
     closePlanningBtn.addEventListener('click', () => {

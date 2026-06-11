@@ -90,7 +90,7 @@ antigravity_phone_chat/
 - **clickElement()**: Searches `document` globally (not scoped to chat container). Defaults `index` to `0`. Filters visible elements only (`offsetParent !== null`). Used by `/switch-chat`, `/agent-action`, `/remote-click`. Defined in `src/server/cdp/remoteControl.js`.
 - **injectMessage()**: Finds `[contenteditable="true"]` with fallback from scoped → document-wide. Injects text via `execCommand("insertText")`, clears/attaches images to the file input, and clicks the send button (or falls back to Enter key event). Defined in `src/server/cdp/messageInjection.js`.
 - **captureSnapshot()**: Uses `querySelectorAll('[data-testid="conversation-view"]')` + `offsetParent !== null` to find the **visible** container (avoids hidden cached DOM nodes). Clones it, tags buttons with `.agent-allow-btn`/`.agent-deny-btn`/`.agent-review-btn` classes, strips input areas AND Lexical placeholders (`[class*="placeholder"]`, `[data-placeholder]`) surgically. Defined in `src/server/cdp/snapshotCapture.js`.
-- **UI Design System & Snapshot Rendering**: All rules for capturing snapshots, overriding Tailwind traps (`h-full`), and injecting the premium dark mode CSS design system are centralized. See `Docs/UI_DESIGN_SYSTEM.md` for UI/CSS work.
+- **UI Design System & Snapshot Rendering**: All rules for capturing snapshots, overriding Tailwind traps (`h-full`), and injecting the OLED-optimized Neural Agentic IDE design system are centralized. See `Docs/UI_DESIGN_SYSTEM.md` for UI/CSS work.
 - **Debug endpoint**: `GET /debug-snapshot` renders raw snapshot HTML in-browser for diagnosing capture vs. display issues.
 - **Model Quota / CDP Navigation**: `capture_models.js` automates Settings → Models navigation to write real-time stats to `parsed_model_quotas.json`. Integrates into modular routing or phone connect quota UI. Refer to `Docs/CDP_EXPLORATION_GUIDE.md` first.
 - **Model Selector (DYNAMIC SYNC)**: When the user clicks the model selection button on the phone, the client fetches the active list of options in real-time from `GET /available-models`. The server runs `syncModelsFromCDP()` to briefly click open the dropdown on the desktop, parse the visible options, close it, and return them. Selected changes are pushed via `POST /set-model`, which opens the dropdown again, selects the matched model, and closes it.
@@ -165,8 +165,8 @@ When a prompt matches one of these features, read the corresponding documentatio
 * **Routing Rule**: If the prompt involves uploading files, attaching images, base64 payload sizes, or pasting images, read the Attachment & Send Button Failure section in [BUG_TRACKING.md](file:///Users/mdaffanahmed/VS%20Code/Git%20Projects/antigravity_phone_chat/Docs/BUG_TRACKING.md) and inspect the `injectMessage` function implementation in `src/server/cdp/messageInjection.js`.
 
 ### 5. UI Design System & Snapshot CSS
-* **Role/Summary**: Complete UI design language, CSS architecture (native + snapshot), rendering pipeline, and UI-specific bug patterns.
-* **Key Files**: `public/css/style.css`, `public/js/app.js` (darkModeOverrides), `src/server/cdp/snapshotCapture.js` (captureSnapshot), `src/server/routes/snapshotRoutes.js` (/debug-snapshot).
+* **Role/Summary**: Complete UI design language (Neural Agentic IDE), CSS architecture (Sidebar drawer, native + snapshot), rendering pipeline, and UI-specific bug patterns.
+* **Key Files**: `public/index.html` (DOM structure), `public/css/style.css` (native CSS tokens), `public/js/app.js` (darkModeOverrides), `src/server/cdp/snapshotCapture.js` (captureSnapshot).
 * **Routing Rule**: If the prompt involves CSS, dark mode, snapshot rendering, layout bugs, or visual design, read [UI_DESIGN_SYSTEM.md](file:///Users/mdaffanahmed/VS%20Code/Git%20Projects/antigravity_phone_chat/Docs/UI_DESIGN_SYSTEM.md) first.
 
 ---
