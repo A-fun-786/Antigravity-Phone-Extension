@@ -379,7 +379,7 @@ textarea {
     font-family: 'Hanken Grotesk', sans-serif;
     font-size: 16px;
     font-weight: 400;
-    padding: 12px 48px 12px 20px;
+    padding: 14px 48px 10px 20px;
     border-radius: var(--radius-full);
     resize: none;
     min-height: 48px;

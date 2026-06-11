@@ -137,12 +137,26 @@
         <!-- Sidebar Header -->
         <div class="drawer-header">
             <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-                <h2>Antigravity</h2>
+                <h2 style="margin: 0; line-height: 1;">Antigravity</h2>
                 <button class="drawer-collapse-btn" id="drawerCollapseBtn" aria-label="Close menu">
                     <span class="material-symbols-outlined">menu_open</span>
                 </button>
             </div>
-            <div style="width: 100%; height: 1px; background: rgba(255, 255, 255, 0.08); margin: 16px 0 8px 0;"></div>
+            
+            <div class="drawer-footer-status" style="width: 100%; padding-top: 6px; padding-bottom: 2px;">
+                <div class="drawer-status-row">
+                    <div class="status-dot disconnected" id="statusDot"></div>
+                    <span id="statusText">Connecting...</span>
+                </div>
+                <div class="drawer-footer-right">
+                    <span id="statsText" class="drawer-stats-text">Syncing...</span>
+                    <button class="drawer-support-btn" id="supportBtn" aria-label="Support" style="background:transparent; border:none; padding:0; margin-left:8px; cursor:pointer; display:flex;">
+                        <span class="material-symbols-outlined" style="font-size:16px; color:#ef4444;">favorite</span>
+                    </button>
+                </div>
+            </div>
+
+            <div style="width: 100%; height: 1px; background: rgba(255, 255, 255, 0.08); margin: 12px 0 8px 0;"></div>
             <button class="drawer-action-item" id="drawerNewChatBtn" style="padding: 8px 4px;">
                 <span class="material-symbols-outlined">edit</span>
                 <span>New chat</span>
@@ -168,7 +182,7 @@
 
         <!-- Sidebar Footer -->
         <footer class="drawer-footer">
-            <div class="drawer-footer-main">
+            <div class="drawer-footer-main" style="margin-bottom: 0;">
                 <div class="drawer-user-info">
                     <div class="drawer-user-avatar">
                         <span class="material-symbols-outlined" style="font-size:28px;">account_circle</span>
@@ -181,18 +195,6 @@
                 <div class="drawer-footer-actions">
                     <button class="drawer-footer-btn" id="drawerSettingsBtn" aria-label="Settings" disabled>
                         <span class="material-symbols-outlined">settings</span>
-                    </button>
-                </div>
-            </div>
-            <div class="drawer-footer-status">
-                <div class="drawer-status-row">
-                    <div class="status-dot disconnected" id="statusDot"></div>
-                    <span id="statusText">Connecting...</span>
-                </div>
-                <div class="drawer-footer-right">
-                    <span id="statsText" class="drawer-stats-text">Syncing...</span>
-                    <button class="drawer-footer-btn drawer-support-btn" id="supportBtn" aria-label="Support">
-                        <span class="material-symbols-outlined" style="font-size:18px; color:#ef4444;">favorite</span>
                     </button>
                 </div>
             </div>

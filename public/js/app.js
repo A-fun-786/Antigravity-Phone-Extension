@@ -638,13 +638,7 @@ async function loadSnapshot() {
             
             // 2. Render General/Standalone Conversations
             if (data.sidebar.conversations && data.sidebar.conversations.length > 0) {
-                const conversationsHeader = document.createElement('div');
-                conversationsHeader.className = 'drawer-section-header';
-                conversationsHeader.innerHTML = `
-                    <span class="material-symbols-outlined" style="font-size:20px; color: var(--text-muted);">chat_bubble_outline</span>
-                    <span>Conversations</span>
-                `;
-                drawerChatList.appendChild(conversationsHeader);
+                // The "Conversations" section header has been completely removed to maintain spacing
                 
                 data.sidebar.conversations.forEach(chat => {
                     const item = document.createElement('div');
