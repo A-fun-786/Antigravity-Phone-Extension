@@ -25,9 +25,58 @@ This document serves as the central hub for tracking known issues, squashed bugs
 |---|---|---|---|
 | 🟢 | None reported | No active bugs tracked at this time. | N/A |
 
+- **Client-Side Snapshot Gating**: Never use a global flag (like `isCreatingNewChat`) to block `loadSnapshot()`. It creates a deadlock where the very polling loop meant to show the new state is blocked by the flag it set. Use visual overlays removed before polling begins.
+- **Snapshot Capture Fallback to Hidden Nodes**: Never fall back to `cascades[cascades.length - 1]` in `captureSnapshot()`. During chat transitions, this grabs the OLD chat from a hidden cached `[data-testid="conversation-view"]` DOM node. Only use `offsetParent !== null` visible nodes.
+- **Server Snapshot Cache Invalidation**: Always clear `state.lastSnapshot` and `state.lastSnapshotHash` when the server creates a new chat. Without this, the polling loop's hash comparison sees no change and never broadcasts the new chat to clients.
+
 ---
 
 ## ✅ Resolved Bugs Log
+
+### [June 14, 2026] - New Chat UI Deadlock (Sidebar "+" Button)
+
+**Symptoms:**
+- Pressing the "+" (New Chat) button in the sidebar showed a "Starting New Chat..." loader that never dismissed, OR showed the old chat content instead of the new empty chat.
+- The server correctly opened a new chat on the desktop (AG PC showed the new chat).
+- Only when a message was sent did the new chat finally render on the phone.
+- Both the drawer "New chat" button and per-project "+" buttons were affected.
+
+**Root Causes (3-Layer Bug):**
+
+This was a multi-layer caching bug where fixing one layer exposed the next:
+
+1. **Layer 1 — Client-Side Flag Deadlock** (`public/js/app.js`):
+   - `startNewChat()` set `window.isCreatingNewChat = true` and then polled `loadSnapshot()` 8 times.
+   - But `loadSnapshot()` had a guard: `if (window.isCreatingNewChat) return;` — blocking ALL snapshot loading.
+   - The flag was only reset by `sendMessage()` or `selectChat()`, neither of which happens naturally after clicking "+".
+   - **Result**: Permanent black "Starting New Chat..." screen (deadlock).
+
+2. **Layer 2 — Snapshot Capture Fallback to Cached DOM** (`src/server/cdp/snapshotCapture.js`):
+   - After fixing Layer 1, the loader was removed and polling worked, but the old chat still rendered.
+   - `captureSnapshot()` used: `cascades.find(el => el.offsetParent !== null) || cascades[cascades.length - 1]`
+   - During the brief chat transition (no visible `conversation-view`), the fallback grabbed the LAST hidden cached DOM node — which contained the old chat.
+   - **Result**: Old chat HTML was re-captured and served as if nothing changed.
+
+3. **Layer 3 — Server Snapshot Hash Cache** (`src/server/routes/chatRoutes.js`):
+   - Even after fixing Layer 2, `state.lastSnapshot` still held the old chat's HTML.
+   - The polling loop's hash comparison (`hash !== state.lastSnapshotHash`) treated the stale snapshot as unchanged.
+   - `state.lastSnapshot` was never invalidated on new chat creation.
+   - **Result**: The `/snapshot` endpoint kept serving the old chat until the polling loop captured a genuinely different snapshot.
+
+**Fixes Applied:**
+1. **Removed `isCreatingNewChat` flag entirely** — deleted declaration, guard in `loadSnapshot()`, and all reset points. Replaced with visual overlay removed before polling.
+2. **Removed hidden DOM fallback** — changed `captureSnapshot()` to only capture visible nodes (`offsetParent !== null`), returning `null` when none are visible.
+3. **Server-side cache invalidation** — `/new-chat` and `/new-project-chat` endpoints now set `state.lastSnapshot = null` and `state.lastSnapshotHash = null` on success.
+4. **Client-side clean transition** — after loader removal, `lastHash` is reset and `showEmptyState()` is called so old HTML never persists on screen.
+5. **Project "+" button parity** — added the same loader/transition UX to the per-project new chat button.
+
+**Why the First Fix Attempt Failed:**
+The first attempt only addressed Layer 1 (removing the `isCreatingNewChat` flag). This was the correct initial diagnosis — the flag was indeed creating a deadlock. However, removing it exposed the deeper issue: the server was still serving the stale old-chat snapshot because of Layers 2 and 3. The polling loop was no longer blocked, but it was fetching the same old HTML from the server, so the UI appeared unchanged. The key insight for the second attempt was recognizing that the bug existed across THREE system layers (client flag → CDP capture → server cache), and all three needed to be fixed together.
+
+**Files Changed:**
+- `public/js/app.js` — Removed `isCreatingNewChat` flag, added loader lifecycle, empty state transition, project "+" feedback
+- `src/server/routes/chatRoutes.js` — Snapshot cache invalidation on new chat
+- `src/server/cdp/snapshotCapture.js` — Removed hidden DOM node fallback
 
 ### [June 6, 2026] - Attachment & Send Button Failure
 

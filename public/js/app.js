@@ -209,6 +209,7 @@ function updateStatus(connected) {
 
 // --- Rendering ---
 async function loadSnapshot() {
+    
     try {
         const response = await fetchWithAuth('/snapshot');
         if (!response.ok) {
@@ -594,16 +595,45 @@ async function loadSnapshot() {
                     newProjectChatBtn.addEventListener('click', async (e) => {
                         e.stopPropagation();
                         toggleDrawer(false);
+
+                        // Show loading state
+                        if (chatContent) chatContent.innerHTML = '';
+                        const projectLoader = document.createElement('div');
+                        projectLoader.id = 'force-new-chat-loader';
+                        projectLoader.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:#000; z-index:999999; display:flex; flex-direction:column; justify-content:center; align-items:center; color:#00dbe9; font-family:sans-serif;';
+                        projectLoader.innerHTML = '<h1>Starting New Chat...</h1><p>Please wait...</p>';
+                        document.body.appendChild(projectLoader);
+
                         try {
-                            await fetchWithAuth('/new-project-chat', {
+                            const res = await fetchWithAuth('/new-project-chat', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ projectName: project.name })
                             });
-                            setTimeout(loadSnapshot, 500);
-                            setTimeout(loadSnapshot, 1000);
+                            const data = await res.json();
+                            if (data.success) {
+                                await new Promise(r => setTimeout(r, 800));
+                                const existingLoader = document.getElementById('force-new-chat-loader');
+                                if (existingLoader) existingLoader.remove();
+
+                                // Reset hash and show clean state so old chat never persists
+                                lastHash = '';
+                                showEmptyState();
+
+                                let attempts = 0;
+                                const poll = setInterval(async () => {
+                                    await loadSnapshot();
+                                    attempts++;
+                                    if (attempts > 8) clearInterval(poll);
+                                }, 500);
+                            } else {
+                                const existingLoader = document.getElementById('force-new-chat-loader');
+                                if (existingLoader) existingLoader.remove();
+                            }
                         } catch (err) {
                             console.error('Failed to create new project chat:', err);
+                            const existingLoader = document.getElementById('force-new-chat-loader');
+                            if (existingLoader) existingLoader.remove();
                         }
                     });
                     
@@ -873,6 +903,10 @@ const attachedCheckmarkIcon = `<span class="material-symbols-outlined" style="co
 async function sendMessage() {
     const message = messageInput.value.trim();
     if (!message && !attachedImageBase64) return;
+    
+    // Remove the forced loader if it exists
+    const loader = document.getElementById('force-new-chat-loader');
+    if (loader) loader.remove();
 
     console.log("[Client] sendMessage called. Message:", message, "Has image:", !!attachedImageBase64);
 
@@ -1125,23 +1159,54 @@ stopBtn.addEventListener('click', async () => {
 
 // --- New Chat Logic ---
 async function startNewChat() {
+    console.log('[Client] startNewChat triggered');
     newChatBtn.style.opacity = '0.5';
     newChatBtn.style.pointerEvents = 'none';
+
+    // Show full-screen loader
+    const loader = document.createElement('div');
+    loader.id = 'force-new-chat-loader';
+    loader.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; background:#000; z-index:999999; display:flex; flex-direction:column; justify-content:center; align-items:center; color:#00dbe9; font-family:sans-serif;';
+    loader.innerHTML = '<h1>Starting New Chat...</h1><p>Please wait...</p>';
+    document.body.appendChild(loader);
+
+    if (chatContent) {
+        chatContent.innerHTML = ''; // completely clear the underlying chat
+    }
 
     try {
         const res = await fetchWithAuth('/new-chat', { method: 'POST' });
         const data = await res.json();
 
         if (data.success) {
-            // Reload snapshot to show new empty chat
-            setTimeout(loadSnapshot, 500);
-            setTimeout(loadSnapshot, 1000);
+            // Let the desktop UI transition to the new chat
+            await new Promise(r => setTimeout(r, 800));
+
+            // Remove loader before polling so the user sees the new chat render
+            const existingLoader = document.getElementById('force-new-chat-loader');
+            if (existingLoader) existingLoader.remove();
+
+            // Reset hash and show clean state so old chat never persists
+            lastHash = '';
+            showEmptyState();
+
+            // Poll for snapshot updates to show the new empty chat
+            let attempts = 0;
+            const poll = setInterval(async () => {
+                await loadSnapshot();
+                attempts++;
+                if (attempts > 8) clearInterval(poll);
+            }, 500);
             setTimeout(checkChatStatus, 1500);
         } else {
             console.error('Failed to start new chat:', data.error);
+            const existingLoader = document.getElementById('force-new-chat-loader');
+            if (existingLoader) existingLoader.remove();
         }
     } catch (e) {
         console.error('New chat error:', e);
+        const existingLoader = document.getElementById('force-new-chat-loader');
+        if (existingLoader) existingLoader.remove();
     }
 
     setTimeout(() => {
@@ -1245,17 +1310,18 @@ async function showChatHistory() {
 }
 
 
-function hideChatHistory() {
+async function hideChatHistory() {
     historyLayer.classList.remove('show');
     // Send an escape key to Antigravity to close the History panel
     try {
-        fetchWithAuth('/close-history', { method: 'POST' });
+        await fetchWithAuth('/close-history', { method: 'POST' });
     } catch (e) {
         console.error('Failed to close history on desktop:', e);
     }
 }
 
 async function selectChat(title) {
+
     try {
         const res = await fetchWithAuth('/select-chat', {
             method: 'POST',
@@ -1549,17 +1615,17 @@ quickActionChips.forEach(chip => {
 
 // Delegation for dynamic history items
 if (historyList) {
-    historyList.addEventListener('click', (e) => {
+    historyList.addEventListener('click', async (e) => {
         const newBtn = e.target.closest('.history-new-btn');
         const card = e.target.closest('.history-card');
         
         if (newBtn) {
-            hideChatHistory();
-            startNewChat();
+            await hideChatHistory();
+            await startNewChat();
         } else if (card) {
             const title = card.getAttribute('data-title');
-            hideChatHistory();
-            selectChat(title);
+            await hideChatHistory();
+            await selectChat(title);
         }
     });
 }

@@ -2,22 +2,44 @@ export async function startNewChat(cdp) {
     const EXP = `(async () => {
         try {
             // Priority 1: Exact selector from user (data-tooltip-id="new-conversation-tooltip")
-            const exactBtn = document.querySelector('[data-tooltip-id="new-conversation-tooltip"]');
+            const exactBtn = document.querySelector('[data-tooltip-id="new-conversation-tooltip"], [data-tooltip-id*="new-conversation"], [data-tooltip-id*="new-chat"], [data-testid="new-chat-button"]');
             if (exactBtn) {
                 exactBtn.click();
-                return { success: true, method: 'data-tooltip-id' };
+                return { success: true, method: 'exact-selector' };
             }
 
-            // Fallback: Use previous heuristics
+            // Fallback: Use previous heuristics (only target actual interactive tags)
             const allButtons = Array.from(document.querySelectorAll('button, [role="button"], a'));
             
+            // Priority 2: Match by exact text content first
+            const textMatchBtn = allButtons.find(btn => {
+                if (btn.offsetParent === null) return false;
+                const text = (btn.textContent || btn.innerText || '').trim().toLowerCase();
+                return text === 'new conversation' || text === 'new chat';
+            });
+            if (textMatchBtn) {
+                textMatchBtn.click();
+                return { success: true, method: 'text-match' };
+            }
+
             // Find all buttons with plus icons
             const plusButtons = allButtons.filter(btn => {
                 if (btn.offsetParent === null) return false; // Skip hidden
+                
+                const pathD = btn.querySelector('svg path')?.getAttribute('d') || '';
+                const isPlusPath = pathD.includes('M450-450') || pathD.includes('H220') || pathD.includes('V-740');
+                if (isPlusPath) return true;
+
                 const hasPlusIcon = btn.querySelector('svg.lucide-plus') || 
                                    btn.querySelector('svg.lucide-square-plus') ||
-                                   btn.querySelector('svg[class*="plus"]');
-                return hasPlusIcon;
+                                   btn.querySelector('svg[class*="plus"]') ||
+                                   btn.querySelector('svg[class*="add"]');
+                if (hasPlusIcon) return true;
+
+                const iconText = (btn.querySelector('.material-icons, .material-symbols-outlined')?.textContent || '').trim().toLowerCase();
+                if (iconText === 'add' || iconText === 'plus') return true;
+
+                return false;
             });
             
             // Filter only top buttons (toolbar area)
@@ -32,16 +54,22 @@ export async function startNewChat(cdp) {
                  return { success: true, method: 'filtered_top_plus', count: topPlusButtons.length };
             }
             
-            // Fallback: aria-label
-             const newChatBtn = allButtons.find(btn => {
-                const ariaLabel = btn.getAttribute('aria-label')?.toLowerCase() || '';
-                const title = btn.getAttribute('title')?.toLowerCase() || '';
-                return (ariaLabel.includes('new') || title.includes('new')) && btn.offsetParent !== null;
+            // Fallback: aria-label / title / testid / className
+            const newChatBtn = allButtons.find(btn => {
+                if (btn.offsetParent === null) return false;
+                const attrs = [
+                    btn.getAttribute('aria-label'),
+                    btn.getAttribute('title'),
+                    btn.getAttribute('data-tooltip-id'),
+                    btn.getAttribute('data-testid'),
+                    btn.className || ''
+                ].map(a => (a || '').toLowerCase());
+                return attrs.some(a => a.includes('new') || a.includes('add') || a.includes('plus') || a.includes('create'));
             });
             
             if (newChatBtn) {
                 newChatBtn.click();
-                return { success: true, method: 'aria_label_new' };
+                return { success: true, method: 'heuristic_new' };
             }
             
             return { error: 'New chat button not found' };
@@ -50,7 +78,21 @@ export async function startNewChat(cdp) {
         }
     })()`;
 
+    const defaultCtx = cdp.contexts.find(ctx => ctx.auxData?.isDefault === true) || cdp.contexts[0];
+    if (defaultCtx) {
+        try {
+            const res = await cdp.call("Runtime.evaluate", {
+                expression: EXP,
+                returnByValue: true,
+                awaitPromise: true,
+                contextId: defaultCtx.id
+            });
+            if (res.result?.value?.success) return res.result.value;
+        } catch (e) { }
+    }
+
     for (const ctx of cdp.contexts) {
+        if (ctx.id === defaultCtx?.id) continue;
         try {
             const res = await cdp.call("Runtime.evaluate", {
                 expression: EXP,
@@ -61,7 +103,7 @@ export async function startNewChat(cdp) {
             if (res.result?.value?.success) return res.result.value;
         } catch (e) { }
     }
-    return { error: 'Context failed' };
+    return { error: 'Context failed or button not found' };
 }
 
 // Start New Chat in a Specific Project
@@ -81,13 +123,43 @@ export async function startNewProjectChat(cdp, projectName) {
                 }
                 
                 if (sectionName === ${JSON.stringify(projectName)}) {
-                    const buttons = Array.from(sec.querySelectorAll('button, [role="button"], a'));
+                    const headerRow = projectCard || projectTitleEl.parentElement || projectTitleEl;
+                    const buttons = Array.from(new Set([
+                        ...Array.from(headerRow.querySelectorAll('button, [role="button"], a')),
+                        ...Array.from(sec.querySelectorAll('button, [role="button"], a'))
+                    ]));
+                    
                     const plusBtn = buttons.find(btn => {
-                        if (btn.offsetParent === null) return false;
-                        return btn.querySelector('svg.lucide-plus') || 
-                               btn.querySelector('svg.lucide-square-plus') ||
-                               btn.querySelector('svg[class*="plus"]') ||
-                               (btn.getAttribute('aria-label') || '').toLowerCase().includes('new');
+                        const pathD = btn.querySelector('svg path')?.getAttribute('d') || '';
+                        const isPlusPath = pathD.includes('M450-450') || pathD.includes('H220') || pathD.includes('V-740');
+                        if (isPlusPath) return true;
+                        
+                        // Check for SVG icons
+                        const hasPlusIcon = btn.querySelector('svg.lucide-plus') || 
+                                           btn.querySelector('svg.lucide-square-plus') ||
+                                           btn.querySelector('svg[class*="plus"]') ||
+                                           btn.querySelector('svg[class*="add"]');
+                        if (hasPlusIcon) return true;
+                        
+                        // Check for Material Symbols / Icons
+                        const iconText = (btn.querySelector('.material-icons, .material-symbols-outlined')?.textContent || '').trim().toLowerCase();
+                        if (iconText === 'add' || iconText === 'plus') return true;
+
+                        // Check attributes
+                        const attrs = [
+                            btn.getAttribute('aria-label'),
+                            btn.getAttribute('title')
+                        ].map(a => (a || '').toLowerCase());
+                        
+                        if (attrs.some(a => a.includes('new') || a.includes('add') || a.includes('plus') || a.includes('create'))) {
+                            return true;
+                        }
+                        
+                        // Check text content
+                        const text = (btn.textContent || '').trim().toLowerCase();
+                        if (text === '+' || text.includes('new chat') || text.includes('add chat')) return true;
+
+                        return false;
                     });
                     
                     if (plusBtn) {
@@ -100,7 +172,21 @@ export async function startNewProjectChat(cdp, projectName) {
         } catch (e) { return { error: e.toString() }; }
     })()`;
 
+    const defaultCtx = cdp.contexts.find(ctx => ctx.auxData?.isDefault === true) || cdp.contexts[0];
+    if (defaultCtx) {
+        try {
+            const res = await cdp.call("Runtime.evaluate", {
+                expression: EXP,
+                returnByValue: true,
+                awaitPromise: true,
+                contextId: defaultCtx.id
+            });
+            if (res.result?.value?.success) return res.result.value;
+        } catch (e) { }
+    }
+
     for (const ctx of cdp.contexts) {
+        if (ctx.id === defaultCtx?.id) continue;
         try {
             const res = await cdp.call("Runtime.evaluate", {
                 expression: EXP,
@@ -111,7 +197,10 @@ export async function startNewProjectChat(cdp, projectName) {
             if (res.result?.value?.success) return res.result.value;
         } catch (e) { }
     }
-    return { error: 'Context failed' };
+
+    // Fallback: If project-specific button not found or failed, start a general new chat
+    console.log('Project-specific new chat button not found. Falling back to general new chat.');
+    return startNewChat(cdp);
 }
 
 // Get Chat History - Click history button and scrape conversations
@@ -297,7 +386,26 @@ export async function getChatHistory(cdp) {
     })()`;
 
     let lastError = null;
+    const defaultCtx = cdp.contexts.find(ctx => ctx.auxData?.isDefault === true) || cdp.contexts[0];
+    if (defaultCtx) {
+        try {
+            const res = await cdp.call("Runtime.evaluate", {
+                expression: EXP,
+                returnByValue: true,
+                awaitPromise: true,
+                contextId: defaultCtx.id
+            });
+            if (res.result?.value) return res.result.value;
+            if (res.exceptionDetails) {
+                lastError = res.exceptionDetails.exception?.description || res.exceptionDetails.text;
+            }
+        } catch (e) {
+            lastError = e.message;
+        }
+    }
+
     for (const ctx of cdp.contexts) {
+        if (ctx.id === defaultCtx?.id) continue;
         try {
             const res = await cdp.call("Runtime.evaluate", {
                 expression: EXP,
@@ -306,7 +414,6 @@ export async function getChatHistory(cdp) {
                 contextId: ctx.id
             });
             if (res.result?.value) return res.result.value;
-            // If result.value is null/undefined but no error thrown, check exceptionDetails
             if (res.exceptionDetails) {
                 lastError = res.exceptionDetails.exception?.description || res.exceptionDetails.text;
             }
@@ -500,7 +607,21 @@ export async function selectChat(cdp, chatTitle) {
         }
     })()`;
 
+    const defaultCtx = cdp.contexts.find(ctx => ctx.auxData?.isDefault === true) || cdp.contexts[0];
+    if (defaultCtx) {
+        try {
+            const res = await cdp.call("Runtime.evaluate", {
+                expression: EXP,
+                returnByValue: true,
+                awaitPromise: true,
+                contextId: defaultCtx.id
+            });
+            if (res.result?.value) return res.result.value;
+        } catch (e) { }
+    }
+
     for (const ctx of cdp.contexts) {
+        if (ctx.id === defaultCtx?.id) continue;
         try {
             const res = await cdp.call("Runtime.evaluate", {
                 expression: EXP,
@@ -526,7 +647,21 @@ export async function closeHistory(cdp) {
         }
     })()`;
 
+    const defaultCtx = cdp.contexts.find(ctx => ctx.auxData?.isDefault === true) || cdp.contexts[0];
+    if (defaultCtx) {
+        try {
+            const res = await cdp.call("Runtime.evaluate", {
+                expression: EXP,
+                returnByValue: true,
+                awaitPromise: true,
+                contextId: defaultCtx.id
+            });
+            if (res.result?.value?.success) return res.result.value;
+        } catch (e) { }
+    }
+
     for (const ctx of cdp.contexts) {
+        if (ctx.id === defaultCtx?.id) continue;
         try {
             const res = await cdp.call("Runtime.evaluate", {
                 expression: EXP,
@@ -555,7 +690,20 @@ export async function hasChatOpen(cdp) {
     };
 })()`;
 
+    const defaultCtx = cdp.contexts.find(ctx => ctx.auxData?.isDefault === true) || cdp.contexts[0];
+    if (defaultCtx) {
+        try {
+            const res = await cdp.call("Runtime.evaluate", {
+                expression: EXP,
+                returnByValue: true,
+                contextId: defaultCtx.id
+            });
+            if (res.result?.value) return res.result.value;
+        } catch (e) { }
+    }
+
     for (const ctx of cdp.contexts) {
+        if (ctx.id === defaultCtx?.id) continue;
         try {
             const res = await cdp.call("Runtime.evaluate", {
                 expression: EXP,

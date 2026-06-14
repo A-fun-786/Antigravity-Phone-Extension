@@ -3,10 +3,10 @@ export async function captureSnapshot(cdp) {
     const CAPTURE_SCRIPT = `(async () => {
         // Target Agent Mode container exclusively - MUST check visibility to avoid hidden cached DOM nodes
         const cascades = Array.from(document.querySelectorAll('[data-testid="conversation-view"]'));
-        const cascade = cascades.find(el => el.offsetParent !== null) || cascades[cascades.length - 1];
+        const cascade = cascades.find(el => el.offsetParent !== null);
         
         if (!cascade) {
-            return { error: 'Agent container not found', debug: { active: false } };
+            return { error: 'Agent container not found or not visible', debug: { active: false, totalNodes: cascades.length } };
         }
         
         const cascadeStyles = window.getComputedStyle(cascade);

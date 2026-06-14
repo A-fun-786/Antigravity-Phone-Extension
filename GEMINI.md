@@ -109,6 +109,9 @@ antigravity_phone_chat/
 - **Never set `position: static !important` on snapshot child divs** — this breaks Antigravity's flex/absolute layout and causes content to collapse to the top.
 - **Never allow Tailwind `h-full` / `overflow-y-auto` to survive on injected snapshot HTML** — these create nested zero-height scroll containers. Always override with `height: auto; overflow: visible;` in the dark mode CSS overrides.
 - **Never forget to strip Lexical placeholder elements** (`[class*="placeholder"]`, `[data-placeholder]`) during snapshot capture — they ghost as misaligned text when the editor is removed.
+- **Never use client-side flags to gate `loadSnapshot()`** — the `isCreatingNewChat` flag blocked ALL snapshot loading (including its own polling loop and WebSocket updates), creating a permanent deadlock. If you need a loading state, use a visual overlay that is removed before polling begins. *(First-attempt miss: removing the flag alone didn't fix it because the server was still serving stale cached snapshots — see next two patterns.)*
+- **Never fall back to hidden cached DOM nodes in `captureSnapshot()`** — the `|| cascades[cascades.length - 1]` fallback re-captured the OLD chat from a hidden cached `[data-testid="conversation-view"]` node during chat transitions, preventing the new chat from ever appearing. Only capture from `offsetParent !== null` visible nodes; return `null` when none are visible.
+- **Always invalidate `state.lastSnapshot` and `state.lastSnapshotHash` on the server when creating a new chat** — without this, the polling loop's hash comparison (`hash !== state.lastSnapshotHash`) treats the stale cached snapshot as unchanged and never broadcasts the new chat to connected clients. This is the server-side complement to the client-side fix above.
 
 ---
 

@@ -15,6 +15,11 @@ export function registerChatRoutes(app, context) {
     app.post('/new-chat', async (req, res) => {
         if (!state.cdpConnection) return res.status(503).json({ error: 'CDP disconnected' });
         const result = await startNewChat(state.cdpConnection);
+        // Invalidate cached snapshot so polling captures the new chat fresh
+        if (result.success) {
+            state.lastSnapshot = null;
+            state.lastSnapshotHash = null;
+        }
         res.json(result);
     });
 
@@ -24,6 +29,11 @@ export function registerChatRoutes(app, context) {
         if (!projectName) return res.status(400).json({ error: 'Project name required' });
         if (!state.cdpConnection) return res.status(503).json({ error: 'CDP disconnected' });
         const result = await startNewProjectChat(state.cdpConnection, projectName);
+        // Invalidate cached snapshot so polling captures the new chat fresh
+        if (result.success) {
+            state.lastSnapshot = null;
+            state.lastSnapshotHash = null;
+        }
         res.json(result);
     });
 
